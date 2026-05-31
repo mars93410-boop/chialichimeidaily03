@@ -115,6 +115,8 @@ const fallbackPersonnel = {
 const schedulesByDate = new Map(schedules.map((schedule) => [schedule.date, schedule]));
 const scheduleDates = new Set(schedules.map((schedule) => schedule.date));
 const today = startOfDay(new Date());
+const EDIT_PERMISSION_CODE = "cmh2026";
+const EDIT_PERMISSION_STORAGE_KEY = "scheduleEditPermissionGranted";
 
 let selectedDate = today;
 let visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
@@ -124,6 +126,8 @@ let doctorByName = buildPersonMap(personnel.doctors);
 let activePicker = null;
 let draggedDoctor = null;
 let nextAreaCode = 1;
+let isEditMode = false;
+let editPermissionGranted = sessionStorage.getItem(EDIT_PERMISSION_STORAGE_KEY) === "true";
 
 const areaGrid = document.querySelector("#areaGrid");
 const dutyGrid = document.querySelector("#dutyGrid");
@@ -137,6 +141,8 @@ const namePicker = document.querySelector("#namePicker");
 const namePickerTitle = document.querySelector("#namePickerTitle");
 const namePickerList = document.querySelector("#namePickerList");
 const namePickerClose = document.querySelector("#namePickerClose");
+const editModeToggle = document.querySelector("#editModeToggle");
+const modeStatus = document.querySelector("#modeStatus");
 
 function render() {
   const day = getScheduleForDate(selectedDate);
@@ -146,9 +152,9 @@ function render() {
 
   areaGrid.innerHTML = [
     ...visibleAreas.map(({ area, areaIndex }, visibleIndex) =>
-      renderAreaCard(area, areaIndex, visibleIndex === visibleAreas.length - 1 && visibleAreas.length > 4),
+      renderAreaCard(area, areaIndex, isEditMode && visibleIndex === visibleAreas.length - 1 && visibleAreas.length > 4),
     ),
-    renderAddAreaCard(),
+    isEditMode ? renderAddAreaCard() : "",
   ].join("");
 
   dutyGrid.innerHTML = normalizedDuties
@@ -156,6 +162,7 @@ function render() {
     .map(renderDutyCard)
     .join("");
   leaveList.innerHTML = renderLeaveList(day);
+  renderEditMode();
 
   if (window.lucide) {
     window.lucide.createIcons();
@@ -224,7 +231,17 @@ function renderAreaCard(area, areaIndex, canDeleteArea = false) {
 
 function renderNameSlot({ kind, label, areaIndex, doctorIndex = "", extraClass }) {
   const baseAttrs = `data-kind="${kind}" data-area-index="${areaIndex}" data-doctor-index="${doctorIndex}"`;
-  const dragAttrs = kind === "doctor" && label ? `draggable="true" data-draggable-doctor="true"` : "";
+  const dragAttrs = isEditMode && kind === "doctor" && label ? `draggable="true" data-draggable-doctor="true"` : "";
+
+  if (!isEditMode) {
+    if (!label) return "";
+
+    return `
+      <span class="name-chip ${extraClass} is-readonly" ${baseAttrs}>
+        <span class="name-chip-label">${label}</span>
+      </span>
+    `;
+  }
 
   if (!label) {
     return `
@@ -257,26 +274,36 @@ function renderDutyCard(duty) {
   const icon = duty.kind === "oncall" ? "calendar-check" : "calendar-days";
   const showNote = duty.note && duty.kind === "evening";
   const pickerKind = duty.kind === "oncall" ? "duty-doctor" : "duty-specialist";
-  return `
-    <article
-      class="duty-card is-${duty.kind}"
+  const editAttrs = isEditMode
+    ? `
       data-action="open-picker"
       data-kind="${pickerKind}"
       data-duty-index="${duty.dutyIndex}"
       tabindex="0"
       role="button"
       aria-label="選擇${duty.kind === "oncall" ? "值班醫師" : "值班專師"}"
+    `
+    : "";
+
+  return `
+    <article
+      class="duty-card is-${duty.kind}"
+      ${editAttrs}
     >
       <span class="duty-badge">${duty.badge}</span>
       <div class="duty-meta">
         ${showNote ? `<small>${duty.note}</small>` : ""}
-        <button
-          class="duty-name-button"
-          type="button"
-          data-action="open-picker"
-          data-kind="${pickerKind}"
-          data-duty-index="${duty.dutyIndex}"
-        >${formatDutyName(duty)}</button>
+        ${
+          isEditMode
+            ? `<button
+                class="duty-name-button"
+                type="button"
+                data-action="open-picker"
+                data-kind="${pickerKind}"
+                data-duty-index="${duty.dutyIndex}"
+              >${formatDutyName(duty)}</button>`
+            : `<span class="duty-name-button is-readonly">${formatDutyName(duty)}</span>`
+        }
       </div>
       <span class="duty-icon"><i data-lucide="${icon}"></i></span>
     </article>
@@ -328,7 +355,20 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+editModeToggle.addEventListener("click", () => {
+  if (isEditMode) {
+    setEditMode(false);
+    return;
+  }
+
+  if (requestEditPermission()) {
+    setEditMode(true);
+  }
+});
+
 areaGrid.addEventListener("click", (event) => {
+  if (!isEditMode) return;
+
   const control = event.target.closest("[data-action]");
   if (!control) return;
 
@@ -357,6 +397,8 @@ areaGrid.addEventListener("click", (event) => {
 });
 
 dutyGrid.addEventListener("click", (event) => {
+  if (!isEditMode) return;
+
   const control = event.target.closest("[data-action]");
   if (!control) return;
 
@@ -366,6 +408,7 @@ dutyGrid.addEventListener("click", (event) => {
 });
 
 dutyGrid.addEventListener("keydown", (event) => {
+  if (!isEditMode) return;
   if (event.key !== "Enter" && event.key !== " ") return;
 
   const control = event.target.closest(".duty-card[data-action]");
@@ -376,6 +419,8 @@ dutyGrid.addEventListener("keydown", (event) => {
 });
 
 areaGrid.addEventListener("dragstart", (event) => {
+  if (!isEditMode) return;
+
   const chip = event.target.closest('[data-draggable-doctor="true"]');
   if (!chip) return;
 
@@ -397,6 +442,7 @@ areaGrid.addEventListener("dragend", () => {
 });
 
 areaGrid.addEventListener("dragover", (event) => {
+  if (!isEditMode) return;
   if (!draggedDoctor) return;
 
   const target = getDoctorDropTarget(event.target);
@@ -416,6 +462,7 @@ areaGrid.addEventListener("dragleave", (event) => {
 });
 
 areaGrid.addEventListener("drop", (event) => {
+  if (!isEditMode) return;
   if (!draggedDoctor) return;
 
   const target = getDoctorDropTarget(event.target);
@@ -443,6 +490,8 @@ namePickerList.addEventListener("click", (event) => {
 });
 
 leaveList.addEventListener("click", (event) => {
+  if (!isEditMode) return;
+
   const control = event.target.closest("[data-action]");
   if (!control) return;
 
@@ -502,11 +551,48 @@ function closeCalendar() {
   datePickerToggle.setAttribute("aria-expanded", "false");
 }
 
+function requestEditPermission() {
+  if (editPermissionGranted) return true;
+
+  const code = window.prompt("請輸入修改權限密碼");
+  if (code === null) return false;
+
+  if (code.trim() === EDIT_PERMISSION_CODE) {
+    editPermissionGranted = true;
+    sessionStorage.setItem(EDIT_PERMISSION_STORAGE_KEY, "true");
+    return true;
+  }
+
+  window.alert("權限密碼不正確，仍維持檢視模式。");
+  return false;
+}
+
+function setEditMode(nextEditMode) {
+  isEditMode = nextEditMode;
+  if (!isEditMode) {
+    draggedDoctor = null;
+    closeNamePicker();
+  }
+  render();
+}
+
+function renderEditMode() {
+  document.body.classList.toggle("is-edit-mode", isEditMode);
+  modeStatus.textContent = isEditMode ? "修改模式" : "檢視模式";
+  editModeToggle.setAttribute("aria-pressed", String(isEditMode));
+  editModeToggle.innerHTML = `
+    <i data-lucide="${isEditMode ? "check" : "lock-keyhole"}"></i>
+    <span>${isEditMode ? "完成修改" : "修改模式"}</span>
+  `;
+}
+
 function getScheduleForDate(date) {
   return schedulesByDate.get(toIsoDate(date)) ?? schedules[0];
 }
 
 function deleteName(kind, areaIndex, doctorIndex) {
+  if (!isEditMode) return;
+
   const day = getScheduleForDate(selectedDate);
   const area = day.areas[areaIndex];
   if (!area) return;
@@ -523,6 +609,8 @@ function deleteName(kind, areaIndex, doctorIndex) {
 }
 
 function addArea() {
+  if (!isEditMode) return;
+
   const day = getScheduleForDate(selectedDate);
   day.areas.push({
     letter: `新增${nextAreaCode++}`,
@@ -535,6 +623,8 @@ function addArea() {
 }
 
 function deleteArea(areaIndex) {
+  if (!isEditMode) return;
+
   const day = getScheduleForDate(selectedDate);
   const visibleAreas = getVisibleAreas(day);
   const lastVisible = visibleAreas.at(-1);
@@ -581,6 +671,8 @@ function getDoctorDropTarget(target) {
 }
 
 function moveDoctor(source, target) {
+  if (!isEditMode) return;
+
   const day = getScheduleForDate(selectedDate);
   const sourceArea = day.areas[source.areaIndex];
   const targetArea = day.areas[target.areaIndex];
@@ -611,6 +703,8 @@ function moveDoctor(source, target) {
 }
 
 function openNamePicker(kind, areaIndex, doctorIndex, dutyIndex = null) {
+  if (!isEditMode) return;
+
   activePicker = { kind, areaIndex, doctorIndex, dutyIndex };
   const isSpecialistPicker = kind === "specialist" || kind === "duty-specialist";
   const options = isSpecialistPicker ? personnel.specialists : personnel.doctors;
@@ -631,6 +725,8 @@ function renderNameOption(person, kind) {
 }
 
 function replaceName(name) {
+  if (!isEditMode) return;
+
   const day = getScheduleForDate(selectedDate);
 
   if (activePicker.kind === "leave-doctor") {
@@ -676,9 +772,13 @@ function renderLeaveList(day) {
             <span class="leave-chip">
               <i>休</i>
               <span>${formatDoctorName(name)}</span>
-              <button class="leave-delete-button" type="button" data-action="delete-leave" data-leave-index="${leaveIndex}" aria-label="刪除 ${name}">
-                <i data-lucide="x"></i>
-              </button>
+              ${
+                isEditMode
+                  ? `<button class="leave-delete-button" type="button" data-action="delete-leave" data-leave-index="${leaveIndex}" aria-label="刪除 ${name}">
+                      <i data-lucide="x"></i>
+                    </button>`
+                  : ""
+              }
             </span>
           `,
         )
@@ -687,14 +787,20 @@ function renderLeaveList(day) {
 
   return `
     ${leaveItems}
-    <button class="leave-add-button" type="button" data-action="add-leave" aria-label="新增請假醫師">
-      <i data-lucide="plus"></i>
-      <span>新增</span>
-    </button>
+    ${
+      isEditMode
+        ? `<button class="leave-add-button" type="button" data-action="add-leave" aria-label="新增請假醫師">
+            <i data-lucide="plus"></i>
+            <span>新增</span>
+          </button>`
+        : ""
+    }
   `;
 }
 
 function deleteLeaveDoctor(leaveIndex) {
+  if (!isEditMode) return;
+
   const day = getScheduleForDate(selectedDate);
   day.leaves.splice(leaveIndex, 1);
   render();

@@ -111,6 +111,71 @@ h1 {
   box-shadow: 0 14px 32px rgba(50, 78, 134, 0.16);
 }
 
+.mode-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-height: 40px;
+  margin: -4px 0 14px;
+}
+
+.mode-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #dfe7f6;
+  border-radius: 999px;
+  color: #647290;
+  background: #f8fbff;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.edit-mode-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--blue);
+  box-shadow: 0 10px 22px rgba(62, 91, 197, 0.2);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 800;
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.edit-mode-button:hover,
+.edit-mode-button:focus-visible {
+  background: var(--blue-dark);
+  box-shadow: 0 12px 26px rgba(62, 91, 197, 0.26);
+  outline: 0;
+  transform: translateY(-1px);
+}
+
+.edit-mode-button svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 3;
+}
+
+.is-edit-mode .mode-badge {
+  color: #2f7049;
+  border-color: #cfe5d8;
+  background: var(--mint);
+}
+
+.is-edit-mode .edit-mode-button {
+  background: var(--green);
+  box-shadow: 0 10px 22px rgba(74, 149, 103, 0.2);
+}
+
 .round-button {
   display: grid;
   width: 38px;
@@ -462,6 +527,17 @@ h1 {
   pointer-events: auto;
 }
 
+.name-chip.is-readonly .name-chip-label,
+.duty-name-button.is-readonly {
+  cursor: default;
+}
+
+.name-chip.is-readonly:hover .name-chip-delete,
+.name-chip.is-readonly:focus-within .name-chip-delete {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .area-specialist .name-chip-label {
   color: #fff;
 }
@@ -785,12 +861,16 @@ h2 {
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.duty-card:hover,
-.duty-card:focus-visible {
+.is-edit-mode .duty-card:hover,
+.is-edit-mode .duty-card:focus-visible {
   border-color: #cdd9f3;
   box-shadow: 0 14px 28px rgba(55, 82, 132, 0.1);
   outline: 0;
   transform: translateY(-1px);
+}
+
+body:not(.is-edit-mode) .duty-card {
+  cursor: default;
 }
 
 .duty-card.is-evening {
@@ -994,6 +1074,11 @@ h2 {
     margin-top: -42px;
   }
 
+  .mode-toolbar {
+    justify-content: center;
+    margin: -2px 0 14px;
+  }
+
   .date-display {
     font-size: 1.65rem;
   }
@@ -1117,6 +1202,17 @@ h2 {
   .date-switcher {
     width: min(312px, 100%);
     min-width: 0;
+  }
+
+  .mode-toolbar {
+    justify-content: space-between;
+  }
+
+  .mode-badge,
+  .edit-mode-button {
+    min-height: 36px;
+    padding-inline: 11px;
+    font-size: 0.88rem;
   }
 
   .area-grid {
