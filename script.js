@@ -83,25 +83,25 @@ const fallbackPersonnel = {
     { name: "賴柔瑜", code: "8417" },
   ],
   doctors: [
-    "余宗興",
-    "林思維",
-    "曾建仁",
-    "韓龍疇",
-    "陳春丞",
-    "鄭鴻翔",
-    "陳經國",
-    "田宇峯",
-    "陳俊良",
-    "王哲川",
-    "王覲文",
-    "王柏竣",
-    "沈坤宏",
-    "蕭景星",
-    "胡恭寧",
-    "廖仁傑",
-    "關哲彥",
-    "于錫倩",
-    "洪順興",
+    { name: "余宗興", code: "6231" },
+    { name: "林思維", code: "5331" },
+    { name: "曾建仁", code: "5619" },
+    { name: "韓龍疇", code: "6017" },
+    { name: "陳春丞", code: "6623" },
+    { name: "鄭鴻翔", code: "3544" },
+    { name: "陳經國", code: "3652" },
+    { name: "田宇峯", code: "5520" },
+    { name: "陳俊良", code: "8048" },
+    { name: "王哲川", code: "5318" },
+    { name: "王覲文", code: "8002" },
+    { name: "王柏竣", code: "" },
+    { name: "沈坤宏", code: "" },
+    { name: "蕭景星", code: "" },
+    { name: "胡恭寧", code: "" },
+    { name: "廖仁傑", code: "" },
+    { name: "關哲彥", code: "" },
+    { name: "于錫倩", code: "" },
+    { name: "洪順興", code: "" },
   ],
 };
 
@@ -113,6 +113,7 @@ let selectedDate = today;
 let visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
 let personnel = fallbackPersonnel;
 let specialistByName = buildSpecialistMap(personnel.specialists);
+let doctorByName = buildPersonMap(personnel.doctors);
 let activePicker = null;
 let draggedDoctor = null;
 let nextAreaCode = 1;
@@ -190,7 +191,7 @@ function renderAreaCard(area, areaIndex, canDeleteArea = false) {
               <li>
                 ${renderNameSlot({
                   kind: "doctor",
-                  label: doctor,
+                  label: formatDoctorName(doctor),
                   areaIndex,
                   doctorIndex,
                   extraClass: "doctor-name-button",
@@ -268,7 +269,7 @@ function renderDutyCard(duty) {
           data-action="open-picker"
           data-kind="${pickerKind}"
           data-duty-index="${duty.dutyIndex}"
-        >${formatPersonName(duty.title)}</button>
+        >${formatDutyName(duty)}</button>
       </div>
       <span class="duty-icon"><i data-lucide="${icon}"></i></span>
     </article>
@@ -617,9 +618,7 @@ function openNamePicker(kind, areaIndex, doctorIndex, dutyIndex = null) {
 
 function renderNameOption(person, kind) {
   const name = typeof person === "string" ? person : person.name;
-  const displayName = kind === "specialist" && typeof person !== "string" && person.code
-    ? `${person.name}(${person.code})`
-    : name;
+  const displayName = kind === "specialist" ? formatSpecialistName(name) : formatDoctorName(name);
 
   return `<button class="name-picker-option" type="button" data-name="${name}">${displayName}</button>`;
 }
@@ -669,7 +668,7 @@ function renderLeaveList(day) {
           (name, leaveIndex) => `
             <span class="leave-chip">
               <i>休</i>
-              <span>${name}</span>
+              <span>${formatDoctorName(name)}</span>
               <button class="leave-delete-button" type="button" data-action="delete-leave" data-leave-index="${leaveIndex}" aria-label="刪除 ${name}">
                 <i data-lucide="x"></i>
               </button>
@@ -756,12 +755,33 @@ function formatSpecialistName(name) {
   return specialist?.code ? `${specialist.name}(${specialist.code})` : name;
 }
 
-function formatPersonName(name) {
-  return specialistByName.has(name) ? formatSpecialistName(name) : name;
+function formatDoctorName(name) {
+  const doctor = doctorByName.get(name);
+  return doctor?.code ? `${doctor.name}(${doctor.code})` : name;
+}
+
+function formatDutyName(duty) {
+  if (duty.kind === "oncall") {
+    return formatDoctorName(duty.title);
+  }
+
+  return formatSpecialistName(duty.title);
 }
 
 function buildSpecialistMap(specialists) {
   return new Map(specialists.map((specialist) => [specialist.name, specialist]));
+}
+
+function buildPersonMap(people) {
+  return new Map(
+    people.map((person) => {
+      if (typeof person === "string") {
+        return [person, { name: person, code: "" }];
+      }
+
+      return [person.name, person];
+    }),
+  );
 }
 
 async function loadPersonnelFromExcel() {
@@ -784,13 +804,14 @@ async function loadPersonnelFromExcel() {
     const specialistName = cleanCell(row[0]);
     const specialistCode = cleanCell(row[1]);
     const doctorName = cleanCell(row[3]);
+    const doctorCode = cleanCell(row[4]);
 
     if (specialistName) {
       specialists.push({ name: specialistName, code: specialistCode });
     }
 
     if (doctorName) {
-      doctors.push(doctorName);
+      doctors.push({ name: doctorName, code: doctorCode });
     }
   });
 
@@ -810,6 +831,7 @@ async function init() {
   try {
     personnel = await loadPersonnelFromExcel();
     specialistByName = buildSpecialistMap(personnel.specialists);
+    doctorByName = buildPersonMap(personnel.doctors);
     render();
   } catch (error) {
     console.info("使用內建人員資料備援。", error);
