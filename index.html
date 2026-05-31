@@ -71,10 +71,6 @@
             <i data-lucide="lock-keyhole"></i>
             <span>修改模式</span>
           </button>
-          <button class="sign-out-button" type="button" id="signOutButton" hidden>
-            <i data-lucide="log-out"></i>
-            <span>登出</span>
-          </button>
         </div>
 
         <section class="area-grid" id="areaGrid" aria-label="分區排班"></section>
@@ -119,17 +115,13 @@
         </div>
         <form class="auth-form" id="authForm">
           <label>
-            <span>Email</span>
-            <input type="email" id="authEmail" autocomplete="email" required />
-          </label>
-          <label>
-            <span>密碼</span>
+            <span>修改密碼</span>
             <input type="password" id="authPassword" autocomplete="current-password" required />
           </label>
           <p class="auth-message" id="authMessage" role="alert"></p>
           <button class="auth-submit-button" type="submit">
-            <i data-lucide="log-in"></i>
-            <span>登入並修改</span>
+            <i data-lucide="key-round"></i>
+            <span>進入修改模式</span>
           </button>
         </form>
       </section>

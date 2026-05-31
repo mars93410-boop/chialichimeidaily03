@@ -116,7 +116,6 @@ let schedulesByDate = new Map(schedules.map((schedule) => [schedule.date, schedu
 let scheduleDates = new Set(schedules.map((schedule) => schedule.date));
 const today = startOfDay(new Date());
 const EDIT_PERMISSION_CODE = "cmh2026";
-const EDIT_PERMISSION_STORAGE_KEY = "scheduleEditPermissionGranted";
 const SUPABASE_TABLE = "schedule_state";
 const SUPABASE_ROW_ID = "default";
 
@@ -129,9 +128,9 @@ let activePicker = null;
 let draggedDoctor = null;
 let nextAreaCode = 1;
 let isEditMode = false;
-let editPermissionGranted = sessionStorage.getItem(EDIT_PERMISSION_STORAGE_KEY) === "true";
+let editPermissionGranted = false;
+let editPassword = "";
 let supabaseClient = null;
-let currentUser = null;
 let cloudReady = false;
 let saveTimer = null;
 let remoteSubscription = null;
@@ -153,10 +152,8 @@ const namePickerClose = document.querySelector("#namePickerClose");
 const editModeToggle = document.querySelector("#editModeToggle");
 const modeStatus = document.querySelector("#modeStatus");
 const syncStatus = document.querySelector("#syncStatus");
-const signOutButton = document.querySelector("#signOutButton");
 const authDialog = document.querySelector("#authDialog");
 const authForm = document.querySelector("#authForm");
-const authEmail = document.querySelector("#authEmail");
 const authPassword = document.querySelector("#authPassword");
 const authCancelButton = document.querySelector("#authCancelButton");
 const authMessage = document.querySelector("#authMessage");
@@ -384,13 +381,6 @@ editModeToggle.addEventListener("click", async () => {
   }
 });
 
-signOutButton.addEventListener("click", async () => {
-  setEditMode(false);
-  if (supabaseClient) {
-    await supabaseClient.auth.signOut();
-  }
-});
-
 authCancelButton.addEventListener("click", () => {
   closeAuthDialog(false);
 });
@@ -592,7 +582,7 @@ function closeCalendar() {
 }
 
 async function requestEditPermission() {
-  if (currentUser) return true;
+  if (editPassword) return true;
 
   if (cloudReady) {
     return openAuthDialog();
@@ -605,7 +595,7 @@ async function requestEditPermission() {
 
   if (code.trim() === EDIT_PERMISSION_CODE) {
     editPermissionGranted = true;
-    sessionStorage.setItem(EDIT_PERMISSION_STORAGE_KEY, "true");
+    editPassword = code.trim();
     setSyncStatus("本機修改中");
     return true;
   }
@@ -618,7 +608,7 @@ function openAuthDialog() {
   authMessage.textContent = "";
   authPassword.value = "";
   authDialog.hidden = false;
-  window.setTimeout(() => authEmail.focus(), 0);
+  window.setTimeout(() => authPassword.focus(), 0);
 
   if (window.lucide) {
     window.lucide.createIcons();
@@ -644,17 +634,16 @@ function closeAuthDialog(result) {
 async function signInForEditMode() {
   if (!supabaseClient) return;
 
-  const email = authEmail.value.trim();
   const password = authPassword.value;
-  authMessage.textContent = "登入中...";
+  authMessage.textContent = "驗證中...";
 
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-  if (error) {
-    authMessage.textContent = "登入失敗，請確認帳號密碼。";
+  const { data, error } = await supabaseClient.rpc("verify_schedule_password", { password });
+  if (error || data !== true) {
+    authMessage.textContent = "修改密碼不正確。";
     return;
   }
 
-  currentUser = data.user;
+  editPassword = password;
   authMessage.textContent = "";
   closeAuthDialog(true);
   updateAuthUi();
@@ -664,6 +653,7 @@ function setEditMode(nextEditMode) {
   isEditMode = nextEditMode;
   if (!isEditMode) {
     draggedDoctor = null;
+    editPassword = "";
     closeNamePicker();
   }
   render();
@@ -681,9 +671,6 @@ function renderEditMode() {
 }
 
 function updateAuthUi() {
-  signOutButton.hidden = !currentUser;
-  signOutButton.title = currentUser?.email ? `已登入：${currentUser.email}` : "";
-
   if (window.lucide) {
     window.lucide.createIcons();
   }
@@ -715,17 +702,6 @@ async function initSupabase() {
   cloudReady = true;
   setSyncStatus("連線中...", "loading");
 
-  supabaseClient.auth.onAuthStateChange((_event, session) => {
-    currentUser = session?.user ?? null;
-    if (!currentUser && isEditMode) {
-      setEditMode(false);
-    } else {
-      updateAuthUi();
-    }
-  });
-
-  const { data } = await supabaseClient.auth.getSession();
-  currentUser = data.session?.user ?? null;
   updateAuthUi();
   await loadScheduleFromCloud();
   subscribeToScheduleChanges();
@@ -754,7 +730,7 @@ async function loadScheduleFromCloud() {
     return;
   }
 
-  setSyncStatus(currentUser ? "尚未建立雲端資料" : "使用內建資料", "local");
+  setSyncStatus("使用內建資料", "local");
 }
 
 function subscribeToScheduleChanges() {
@@ -794,8 +770,8 @@ function queueSaveSchedule() {
     return;
   }
 
-  if (!currentUser) {
-    setSyncStatus("尚未登入", "error");
+  if (!editPassword) {
+    setSyncStatus("尚未輸入密碼", "error");
     return;
   }
 
@@ -805,18 +781,12 @@ function queueSaveSchedule() {
 }
 
 async function saveScheduleToCloud() {
-  if (!supabaseClient || !currentUser) return;
+  if (!supabaseClient || !editPassword) return;
 
-  const updatedAt = new Date().toISOString();
-  const { error } = await supabaseClient.from(SUPABASE_TABLE).upsert(
-    {
-      id: SUPABASE_ROW_ID,
-      data: serializeSchedules(),
-      updated_at: updatedAt,
-      updated_by: currentUser.email ?? currentUser.id,
-    },
-    { onConflict: "id" },
-  );
+  const { data, error } = await supabaseClient.rpc("save_schedule_state", {
+    password: editPassword,
+    schedule_data: serializeSchedules(),
+  });
 
   if (error) {
     setSyncStatus("儲存失敗", "error");
@@ -824,7 +794,7 @@ async function saveScheduleToCloud() {
     return;
   }
 
-  lastSavedAt = updatedAt;
+  lastSavedAt = data?.updated_at ?? new Date().toISOString();
   setSyncStatus("已儲存雲端", "synced");
 }
 
