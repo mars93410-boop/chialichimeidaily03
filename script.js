@@ -118,6 +118,7 @@ const today = startOfDay(new Date());
 const EDIT_PERMISSION_CODE = "cmh2026";
 const SUPABASE_TABLE = "schedule_state";
 const SUPABASE_ROW_ID = "default";
+const LOCAL_SCHEDULE_STORAGE_KEY = "surgeryScheduleState";
 
 let selectedDate = today;
 let visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
@@ -132,6 +133,7 @@ let editPermissionGranted = false;
 let editPassword = "";
 let supabaseClient = null;
 let cloudReady = false;
+let localBackupLoaded = false;
 let saveTimer = null;
 let remoteSubscription = null;
 let lastSavedAt = null;
@@ -693,7 +695,7 @@ function isSupabaseConfigured() {
 
 async function initSupabase() {
   if (!isSupabaseConfigured() || !window.supabase?.createClient) {
-    setSyncStatus("本機資料", "local");
+    setSyncStatus(localBackupLoaded ? "本機已還原" : "本機資料", "local");
     return;
   }
 
@@ -724,13 +726,14 @@ async function loadScheduleFromCloud() {
 
   if (Array.isArray(data?.data) && data.data.length) {
     applyCloudSchedules(data.data);
+    saveScheduleBackup();
     lastSavedAt = data.updated_at;
     setSyncStatus("雲端已同步", "synced");
     render();
     return;
   }
 
-  setSyncStatus("使用內建資料", "local");
+  setSyncStatus(localBackupLoaded ? "本機已還原" : "使用內建資料", "local");
 }
 
 function subscribeToScheduleChanges() {
@@ -766,7 +769,8 @@ function rebuildScheduleIndexes() {
 
 function queueSaveSchedule() {
   if (!cloudReady || !supabaseClient) {
-    setSyncStatus("尚未連線雲端", "local");
+    saveScheduleBackup();
+    setSyncStatus("本機已儲存", "local");
     return;
   }
 
@@ -789,12 +793,14 @@ async function saveScheduleToCloud() {
   });
 
   if (error) {
-    setSyncStatus("儲存失敗", "error");
+    saveScheduleBackup();
+    setSyncStatus("雲端失敗，已存本機", "error");
     console.info("Supabase schedule save failed.", error);
     return;
   }
 
   lastSavedAt = data?.updated_at ?? new Date().toISOString();
+  saveScheduleBackup();
   setSyncStatus("已儲存雲端", "synced");
 }
 
@@ -804,6 +810,31 @@ function structuredCloneSafe(value) {
   }
 
   return JSON.parse(JSON.stringify(value));
+}
+
+function loadScheduleBackup() {
+  try {
+    const rawValue = localStorage.getItem(LOCAL_SCHEDULE_STORAGE_KEY);
+    if (!rawValue) return false;
+
+    const parsedValue = JSON.parse(rawValue);
+    if (!Array.isArray(parsedValue) || !parsedValue.length) return false;
+
+    applyCloudSchedules(parsedValue);
+    return true;
+  } catch (error) {
+    console.info("本機班表備份讀取失敗。", error);
+    return false;
+  }
+}
+
+function saveScheduleBackup() {
+  try {
+    localStorage.setItem(LOCAL_SCHEDULE_STORAGE_KEY, JSON.stringify(serializeSchedules()));
+    localBackupLoaded = true;
+  } catch (error) {
+    console.info("本機班表備份儲存失敗。", error);
+  }
 }
 
 function serializeSchedules() {
@@ -1211,6 +1242,7 @@ function cleanCell(value) {
 }
 
 async function init() {
+  localBackupLoaded = loadScheduleBackup();
   render();
 
   try {

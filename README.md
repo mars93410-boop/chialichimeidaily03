@@ -54,3 +54,5 @@ window.SCHEDULE_SUPABASE_CONFIG = {
 ```
 
 完成後重新部署。未設定 Supabase 時，網站仍可用內建資料顯示，但修改不會雲端保存。
+
+未設定 Supabase 或雲端儲存失敗時，修改會先備份在目前瀏覽器的 `localStorage`，重新整理不會消失；但換電腦或換瀏覽器不會同步。要跨裝置同步仍需完成 Supabase 設定。
