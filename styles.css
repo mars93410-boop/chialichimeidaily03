@@ -37,6 +37,7 @@ input {
 }
 
 .schedule-shell {
+  position: relative;
   width: min(1320px, calc(100% - 24px));
   max-width: 100%;
   margin: 0 auto;
@@ -90,25 +91,28 @@ h1 {
 .board {
   position: relative;
   z-index: 2;
-  padding: 0 30px 20px;
+  padding: 44px 30px 20px;
   background: linear-gradient(180deg, #fff 0%, rgba(255, 255, 255, 0.86) 100%);
 }
 
 .date-switcher {
-  position: relative;
-  z-index: 2;
+  position: absolute;
+  top: -116px;
+  left: 50%;
+  z-index: 4;
   display: grid;
   grid-template-columns: 42px minmax(128px, auto) 42px;
   align-items: center;
   width: fit-content;
   min-width: 300px;
   min-height: 58px;
-  margin: -30px auto 16px;
+  margin: 0;
   padding: 6px 14px;
   border: 1px solid rgba(224, 232, 248, 0.96);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 14px 32px rgba(50, 78, 134, 0.16);
+  transform: translateX(-50%);
 }
 
 .mode-toolbar {
@@ -1213,14 +1217,14 @@ body:not(.is-edit-mode) .duty-card {
   }
 
   .board {
-    padding: 0 18px 28px;
+    padding: 46px 18px 28px;
   }
 
   .date-switcher {
     grid-template-columns: 44px minmax(118px, 1fr) 44px;
     min-width: min(100%, 312px);
     min-height: 64px;
-    margin-top: -42px;
+    top: -134px;
   }
 
   .mode-toolbar {
@@ -1345,12 +1349,14 @@ body:not(.is-edit-mode) .duty-card {
 
   .board {
     padding-inline: 16px;
+    padding-top: 48px;
     overflow: visible;
   }
 
   .date-switcher {
     width: min(312px, 100%);
     min-width: 0;
+    top: -52px;
   }
 
   .mode-toolbar {
