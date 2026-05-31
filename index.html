@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>佳里奇美外科｜醫療團隊排班總覽</title>
+    <link rel="icon" href="data:," />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="schedule-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="hospital-name">佳里奇美外科</p>
+          <h1>醫療團隊排班總覽</h1>
+        </div>
+      </section>
+
+      <section class="board" aria-label="醫療團隊排班總覽">
+        <div class="date-switcher" aria-label="日期切換">
+          <button class="round-button" type="button" id="prevDay" aria-label="前一天">
+            <i data-lucide="chevron-left"></i>
+          </button>
+          <button
+            class="date-display"
+            type="button"
+            id="datePickerToggle"
+            aria-expanded="false"
+            aria-controls="calendarPanel"
+          >
+            <i data-lucide="calendar-days"></i>
+            <span id="currentDate">5/31</span>
+          </button>
+          <button class="round-button" type="button" id="nextDay" aria-label="後一天">
+            <i data-lucide="chevron-right"></i>
+          </button>
+
+          <div class="calendar-popover" id="calendarPanel" hidden>
+            <div class="calendar-head">
+              <button class="calendar-nav" type="button" id="prevMonth" aria-label="上個月">
+                <i data-lucide="chevron-left"></i>
+              </button>
+              <strong id="calendarMonth"></strong>
+              <button class="calendar-nav" type="button" id="nextMonth" aria-label="下個月">
+                <i data-lucide="chevron-right"></i>
+              </button>
+            </div>
+            <div class="calendar-weekdays" aria-hidden="true">
+              <span>日</span>
+              <span>一</span>
+              <span>二</span>
+              <span>三</span>
+              <span>四</span>
+              <span>五</span>
+              <span>六</span>
+            </div>
+            <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="選擇日期"></div>
+          </div>
+        </div>
+
+        <section class="area-grid" id="areaGrid" aria-label="分區排班"></section>
+
+        <section class="status-section">
+          <div class="section-title">
+            <span class="title-icon duty"><i data-lucide="user-round-check"></i></span>
+            <h2>值班醫師/專師</h2>
+          </div>
+          <div class="status-grid" id="dutyGrid"></div>
+        </section>
+
+        <section class="status-section leave-section">
+          <div class="section-title">
+            <span class="title-icon leave"><i data-lucide="user-round-minus"></i></span>
+            <h2>請假醫師</h2>
+          </div>
+          <div class="leave-list" id="leaveList"></div>
+        </section>
+      </section>
+    </main>
+
+    <div class="name-picker-backdrop" id="namePicker" hidden>
+      <section class="name-picker" role="dialog" aria-modal="true" aria-labelledby="namePickerTitle">
+        <div class="name-picker-head">
+          <h2 id="namePickerTitle">選擇人員</h2>
+          <button class="name-picker-close" type="button" id="namePickerClose" aria-label="關閉">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="name-picker-list" id="namePickerList"></div>
+      </section>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="./script.js"></script>
+  </body>
+</html>
