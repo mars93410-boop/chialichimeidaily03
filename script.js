@@ -1,4 +1,4 @@
-const schedules = [
+let schedules = [
   {
     date: "2026-05-31",
     label: "5/31",
@@ -112,11 +112,13 @@ const fallbackPersonnel = {
   ],
 };
 
-const schedulesByDate = new Map(schedules.map((schedule) => [schedule.date, schedule]));
-const scheduleDates = new Set(schedules.map((schedule) => schedule.date));
+let schedulesByDate = new Map(schedules.map((schedule) => [schedule.date, schedule]));
+let scheduleDates = new Set(schedules.map((schedule) => schedule.date));
 const today = startOfDay(new Date());
 const EDIT_PERMISSION_CODE = "cmh2026";
 const EDIT_PERMISSION_STORAGE_KEY = "scheduleEditPermissionGranted";
+const SUPABASE_TABLE = "schedule_state";
+const SUPABASE_ROW_ID = "default";
 
 let selectedDate = today;
 let visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
@@ -128,6 +130,13 @@ let draggedDoctor = null;
 let nextAreaCode = 1;
 let isEditMode = false;
 let editPermissionGranted = sessionStorage.getItem(EDIT_PERMISSION_STORAGE_KEY) === "true";
+let supabaseClient = null;
+let currentUser = null;
+let cloudReady = false;
+let saveTimer = null;
+let remoteSubscription = null;
+let lastSavedAt = null;
+let authDialogResolve = null;
 
 const areaGrid = document.querySelector("#areaGrid");
 const dutyGrid = document.querySelector("#dutyGrid");
@@ -143,6 +152,14 @@ const namePickerList = document.querySelector("#namePickerList");
 const namePickerClose = document.querySelector("#namePickerClose");
 const editModeToggle = document.querySelector("#editModeToggle");
 const modeStatus = document.querySelector("#modeStatus");
+const syncStatus = document.querySelector("#syncStatus");
+const signOutButton = document.querySelector("#signOutButton");
+const authDialog = document.querySelector("#authDialog");
+const authForm = document.querySelector("#authForm");
+const authEmail = document.querySelector("#authEmail");
+const authPassword = document.querySelector("#authPassword");
+const authCancelButton = document.querySelector("#authCancelButton");
+const authMessage = document.querySelector("#authMessage");
 
 function render() {
   const day = getScheduleForDate(selectedDate);
@@ -352,18 +369,41 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeCalendar();
     closeNamePicker();
+    closeAuthDialog(false);
   }
 });
 
-editModeToggle.addEventListener("click", () => {
+editModeToggle.addEventListener("click", async () => {
   if (isEditMode) {
     setEditMode(false);
     return;
   }
 
-  if (requestEditPermission()) {
+  if (await requestEditPermission()) {
     setEditMode(true);
   }
+});
+
+signOutButton.addEventListener("click", async () => {
+  setEditMode(false);
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut();
+  }
+});
+
+authCancelButton.addEventListener("click", () => {
+  closeAuthDialog(false);
+});
+
+authDialog.addEventListener("click", (event) => {
+  if (event.target === authDialog) {
+    closeAuthDialog(false);
+  }
+});
+
+authForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await signInForEditMode();
 });
 
 areaGrid.addEventListener("click", (event) => {
@@ -551,20 +591,73 @@ function closeCalendar() {
   datePickerToggle.setAttribute("aria-expanded", "false");
 }
 
-function requestEditPermission() {
+async function requestEditPermission() {
+  if (currentUser) return true;
+
+  if (cloudReady) {
+    return openAuthDialog();
+  }
+
   if (editPermissionGranted) return true;
 
-  const code = window.prompt("請輸入修改權限密碼");
+  const code = window.prompt("Supabase 尚未設定，請輸入本機修改密碼");
   if (code === null) return false;
 
   if (code.trim() === EDIT_PERMISSION_CODE) {
     editPermissionGranted = true;
     sessionStorage.setItem(EDIT_PERMISSION_STORAGE_KEY, "true");
+    setSyncStatus("本機修改中");
     return true;
   }
 
   window.alert("權限密碼不正確，仍維持檢視模式。");
   return false;
+}
+
+function openAuthDialog() {
+  authMessage.textContent = "";
+  authPassword.value = "";
+  authDialog.hidden = false;
+  window.setTimeout(() => authEmail.focus(), 0);
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+
+  return new Promise((resolve) => {
+    authDialogResolve = resolve;
+  });
+}
+
+function closeAuthDialog(result) {
+  if (authDialog.hidden) return;
+  authDialog.hidden = true;
+  authMessage.textContent = "";
+  authPassword.value = "";
+
+  if (authDialogResolve) {
+    authDialogResolve(result);
+    authDialogResolve = null;
+  }
+}
+
+async function signInForEditMode() {
+  if (!supabaseClient) return;
+
+  const email = authEmail.value.trim();
+  const password = authPassword.value;
+  authMessage.textContent = "登入中...";
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) {
+    authMessage.textContent = "登入失敗，請確認帳號密碼。";
+    return;
+  }
+
+  currentUser = data.user;
+  authMessage.textContent = "";
+  closeAuthDialog(true);
+  updateAuthUi();
 }
 
 function setEditMode(nextEditMode) {
@@ -584,10 +677,211 @@ function renderEditMode() {
     <i data-lucide="${isEditMode ? "check" : "lock-keyhole"}"></i>
     <span>${isEditMode ? "完成修改" : "修改模式"}</span>
   `;
+  updateAuthUi();
+}
+
+function updateAuthUi() {
+  signOutButton.hidden = !currentUser;
+  signOutButton.title = currentUser?.email ? `已登入：${currentUser.email}` : "";
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+function setSyncStatus(message, state = "") {
+  syncStatus.textContent = message;
+  syncStatus.dataset.state = state;
+}
+
+function isSupabaseConfigured() {
+  const config = window.SCHEDULE_SUPABASE_CONFIG;
+  return Boolean(
+    config?.url?.startsWith("https://") &&
+      config?.anonKey &&
+      config.anonKey.length > 20 &&
+      !config.anonKey.includes("YOUR_"),
+  );
+}
+
+async function initSupabase() {
+  if (!isSupabaseConfigured() || !window.supabase?.createClient) {
+    setSyncStatus("本機資料", "local");
+    return;
+  }
+
+  const { url, anonKey } = window.SCHEDULE_SUPABASE_CONFIG;
+  supabaseClient = window.supabase.createClient(url, anonKey);
+  cloudReady = true;
+  setSyncStatus("連線中...", "loading");
+
+  supabaseClient.auth.onAuthStateChange((_event, session) => {
+    currentUser = session?.user ?? null;
+    if (!currentUser && isEditMode) {
+      setEditMode(false);
+    } else {
+      updateAuthUi();
+    }
+  });
+
+  const { data } = await supabaseClient.auth.getSession();
+  currentUser = data.session?.user ?? null;
+  updateAuthUi();
+  await loadScheduleFromCloud();
+  subscribeToScheduleChanges();
+}
+
+async function loadScheduleFromCloud() {
+  if (!supabaseClient) return;
+
+  const { data, error } = await supabaseClient
+    .from(SUPABASE_TABLE)
+    .select("data, updated_at")
+    .eq("id", SUPABASE_ROW_ID)
+    .maybeSingle();
+
+  if (error) {
+    setSyncStatus("雲端讀取失敗", "error");
+    console.info("Supabase schedule load failed.", error);
+    return;
+  }
+
+  if (Array.isArray(data?.data) && data.data.length) {
+    applyCloudSchedules(data.data);
+    lastSavedAt = data.updated_at;
+    setSyncStatus("雲端已同步", "synced");
+    render();
+    return;
+  }
+
+  setSyncStatus(currentUser ? "尚未建立雲端資料" : "使用內建資料", "local");
+}
+
+function subscribeToScheduleChanges() {
+  if (!supabaseClient || remoteSubscription) return;
+
+  remoteSubscription = supabaseClient
+    .channel("schedule-state")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: SUPABASE_TABLE, filter: `id=eq.${SUPABASE_ROW_ID}` },
+      (payload) => {
+        const nextData = payload.new?.data;
+        if (!Array.isArray(nextData) || !nextData.length) return;
+        if (payload.new?.updated_at && payload.new.updated_at === lastSavedAt) return;
+        applyCloudSchedules(nextData);
+        lastSavedAt = payload.new?.updated_at ?? lastSavedAt;
+        setSyncStatus("雲端已更新", "synced");
+        render();
+      },
+    )
+    .subscribe();
+}
+
+function applyCloudSchedules(nextSchedules) {
+  schedules = sanitizeSchedules(nextSchedules);
+  rebuildScheduleIndexes();
+}
+
+function rebuildScheduleIndexes() {
+  schedulesByDate = new Map(schedules.map((schedule) => [schedule.date, schedule]));
+  scheduleDates = new Set(schedules.map((schedule) => schedule.date));
+}
+
+function queueSaveSchedule() {
+  if (!cloudReady || !supabaseClient) {
+    setSyncStatus("尚未連線雲端", "local");
+    return;
+  }
+
+  if (!currentUser) {
+    setSyncStatus("尚未登入", "error");
+    return;
+  }
+
+  window.clearTimeout(saveTimer);
+  setSyncStatus("儲存中...", "loading");
+  saveTimer = window.setTimeout(saveScheduleToCloud, 600);
+}
+
+async function saveScheduleToCloud() {
+  if (!supabaseClient || !currentUser) return;
+
+  const updatedAt = new Date().toISOString();
+  const { error } = await supabaseClient.from(SUPABASE_TABLE).upsert(
+    {
+      id: SUPABASE_ROW_ID,
+      data: serializeSchedules(),
+      updated_at: updatedAt,
+      updated_by: currentUser.email ?? currentUser.id,
+    },
+    { onConflict: "id" },
+  );
+
+  if (error) {
+    setSyncStatus("儲存失敗", "error");
+    console.info("Supabase schedule save failed.", error);
+    return;
+  }
+
+  lastSavedAt = updatedAt;
+  setSyncStatus("已儲存雲端", "synced");
+}
+
+function structuredCloneSafe(value) {
+  if (typeof structuredClone === "function") {
+    return structuredClone(value);
+  }
+
+  return JSON.parse(JSON.stringify(value));
+}
+
+function serializeSchedules() {
+  return schedules.map((schedule) => ({
+    date: schedule.date,
+    label: schedule.label,
+    areas: (schedule.areas ?? []).map((area) => ({
+      letter: area.letter,
+      type: area.type,
+      visible: area.visible,
+      specialist: area.specialist,
+      doctors: [...(area.doctors ?? [])],
+    })),
+    duties: (schedule.duties ?? []).map((duty) => ({
+      kind: duty.kind,
+      badge: duty.badge,
+      title: duty.title,
+      note: duty.note ?? "",
+    })),
+    leaves: [...(schedule.leaves ?? [])],
+  }));
+}
+
+function sanitizeSchedules(nextSchedules) {
+  return structuredCloneSafe(nextSchedules)
+    .filter((schedule) => schedule?.date)
+    .map((schedule) => ({
+      date: schedule.date,
+      label: schedule.label ?? formatShortDate(parseLocalDate(schedule.date)),
+      areas: (schedule.areas ?? []).map((area) => ({
+        letter: area.letter ?? "",
+        type: area.type ?? "ward",
+        visible: area.visible,
+        specialist: area.specialist ?? "",
+        doctors: (area.doctors ?? []).filter(Boolean),
+      })),
+      duties: (schedule.duties ?? []).map((duty) => ({
+        kind: duty.kind,
+        badge: duty.badge,
+        title: duty.title ?? "",
+        note: duty.note ?? "",
+      })),
+      leaves: schedule.leaves ?? [],
+    }));
 }
 
 function getScheduleForDate(date) {
-  return schedulesByDate.get(toIsoDate(date)) ?? schedules[0];
+  return schedulesByDate.get(toIsoDate(date)) ?? schedules[0] ?? { date: toIsoDate(date), areas: [], duties: [], leaves: [] };
 }
 
 function deleteName(kind, areaIndex, doctorIndex) {
@@ -606,6 +900,7 @@ function deleteName(kind, areaIndex, doctorIndex) {
   }
 
   render();
+  queueSaveSchedule();
 }
 
 function addArea() {
@@ -620,6 +915,7 @@ function addArea() {
     doctors: [],
   });
   render();
+  queueSaveSchedule();
 }
 
 function deleteArea(areaIndex) {
@@ -631,6 +927,7 @@ function deleteArea(areaIndex) {
   if (visibleAreas.length <= 4 || lastVisible?.areaIndex !== areaIndex) return;
   day.areas.splice(areaIndex, 1);
   render();
+  queueSaveSchedule();
 }
 
 function getVisibleAreas(day) {
@@ -700,6 +997,7 @@ function moveDoctor(source, target) {
 
   targetArea.doctors.splice(insertIndex, 0, sourceName);
   render();
+  queueSaveSchedule();
 }
 
 function openNamePicker(kind, areaIndex, doctorIndex, dutyIndex = null) {
@@ -734,6 +1032,7 @@ function replaceName(name) {
       day.leaves.push(name);
     }
     render();
+    queueSaveSchedule();
     return;
   }
 
@@ -743,6 +1042,7 @@ function replaceName(name) {
       duty.title = name;
     }
     render();
+    queueSaveSchedule();
     return;
   }
 
@@ -762,6 +1062,7 @@ function replaceName(name) {
   }
 
   render();
+  queueSaveSchedule();
 }
 
 function renderLeaveList(day) {
@@ -804,6 +1105,7 @@ function deleteLeaveDoctor(leaveIndex) {
   const day = getScheduleForDate(selectedDate);
   day.leaves.splice(leaveIndex, 1);
   render();
+  queueSaveSchedule();
 }
 
 function closeNamePicker() {
@@ -940,6 +1242,13 @@ function cleanCell(value) {
 
 async function init() {
   render();
+
+  try {
+    await initSupabase();
+  } catch (error) {
+    setSyncStatus("雲端連線失敗", "error");
+    console.info("Supabase 初始化失敗。", error);
+  }
 
   try {
     personnel = await loadPersonnelFromExcel();

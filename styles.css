@@ -113,6 +113,7 @@ h1 {
 
 .mode-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
@@ -131,6 +132,37 @@ h1 {
   background: #f8fbff;
   font-size: 0.9rem;
   font-weight: 800;
+}
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #dfe7f6;
+  border-radius: 999px;
+  color: #65728b;
+  background: #fff;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.sync-badge[data-state="synced"] {
+  color: #2f7049;
+  border-color: #cfe5d8;
+  background: var(--mint);
+}
+
+.sync-badge[data-state="loading"] {
+  color: #8b642f;
+  border-color: #f0ddbf;
+  background: var(--amber-soft);
+}
+
+.sync-badge[data-state="error"] {
+  color: #a84651;
+  border-color: #f0cbd0;
+  background: #fff4f5;
 }
 
 .edit-mode-button {
@@ -162,6 +194,35 @@ h1 {
 .edit-mode-button svg {
   width: 18px;
   height: 18px;
+  stroke-width: 3;
+}
+
+.sign-out-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #dfe7f6;
+  border-radius: 999px;
+  color: #5f6f90;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.sign-out-button:hover,
+.sign-out-button:focus-visible {
+  color: var(--blue-dark);
+  background: #f3f6ff;
+  outline: 0;
+}
+
+.sign-out-button svg {
+  width: 17px;
+  height: 17px;
   stroke-width: 3;
 }
 
@@ -709,9 +770,33 @@ h1 {
   display: none;
 }
 
+.auth-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(22, 35, 62, 0.24);
+  backdrop-filter: blur(2px);
+}
+
+.auth-backdrop[hidden] {
+  display: none;
+}
+
 .name-picker {
   width: min(420px, 100%);
   max-height: min(620px, calc(100vh - 44px));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(37, 62, 115, 0.26);
+}
+
+.auth-panel {
+  width: min(420px, 100%);
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -763,6 +848,70 @@ h1 {
   max-height: 500px;
   overflow: auto;
   padding: 16px;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 7px;
+  color: #53627f;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.auth-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #dbe4f5;
+  border-radius: 12px;
+  color: var(--ink);
+  background: #fbfdff;
+  font-weight: 700;
+}
+
+.auth-form input:focus {
+  border-color: var(--blue);
+  outline: 3px solid rgba(79, 112, 215, 0.16);
+}
+
+.auth-message {
+  min-height: 22px;
+  margin: -2px 0 0;
+  color: #a84651;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.auth-submit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  background: var(--blue);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.auth-submit-button:hover,
+.auth-submit-button:focus-visible {
+  background: var(--blue-dark);
+  outline: 0;
+}
+
+.auth-submit-button svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 3;
 }
 
 .name-picker-option {
@@ -1209,7 +1358,9 @@ body:not(.is-edit-mode) .duty-card {
   }
 
   .mode-badge,
-  .edit-mode-button {
+  .sync-badge,
+  .edit-mode-button,
+  .sign-out-button {
     min-height: 36px;
     padding-inline: 11px;
     font-size: 0.88rem;

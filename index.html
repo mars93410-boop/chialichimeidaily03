@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260531-edit-mode" />
+    <link rel="stylesheet" href="./styles.css?v=20260531-cloud-sync" />
   </head>
   <body>
     <main class="schedule-shell">
@@ -66,9 +66,14 @@
 
         <div class="mode-toolbar" aria-live="polite">
           <span class="mode-badge" id="modeStatus">檢視模式</span>
+          <span class="sync-badge" id="syncStatus">本機資料</span>
           <button class="edit-mode-button" type="button" id="editModeToggle" aria-pressed="false">
             <i data-lucide="lock-keyhole"></i>
             <span>修改模式</span>
+          </button>
+          <button class="sign-out-button" type="button" id="signOutButton" hidden>
+            <i data-lucide="log-out"></i>
+            <span>登出</span>
           </button>
         </div>
 
@@ -104,8 +109,36 @@
       </section>
     </div>
 
+    <div class="auth-backdrop" id="authDialog" hidden>
+      <section class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <div class="name-picker-head">
+          <h2 id="authTitle">修改權限</h2>
+          <button class="name-picker-close" type="button" id="authCancelButton" aria-label="關閉">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <form class="auth-form" id="authForm">
+          <label>
+            <span>Email</span>
+            <input type="email" id="authEmail" autocomplete="email" required />
+          </label>
+          <label>
+            <span>密碼</span>
+            <input type="password" id="authPassword" autocomplete="current-password" required />
+          </label>
+          <p class="auth-message" id="authMessage" role="alert"></p>
+          <button class="auth-submit-button" type="submit">
+            <i data-lucide="log-in"></i>
+            <span>登入並修改</span>
+          </button>
+        </form>
+      </section>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="./script.js?v=20260531-edit-mode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./supabase-config.js?v=20260531-sync"></script>
+    <script src="./script.js?v=20260531-cloud-sync"></script>
   </body>
 </html>
