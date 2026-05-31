@@ -4,3 +4,5 @@ preview-*.png
 ~$*.xlsx
 .DS_Store
 Thumbs.db
+
+.vercel
