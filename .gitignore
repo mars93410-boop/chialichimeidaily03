@@ -1,0 +1,6 @@
+*.log
+tmp-edge-profile/
+preview-*.png
+~$*.xlsx
+.DS_Store
+Thumbs.db
