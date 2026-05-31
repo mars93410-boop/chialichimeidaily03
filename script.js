@@ -9,7 +9,7 @@ const schedules = [
       { letter: "E", type: "ward", specialist: "黃嘉綺", doctors: ["王哲川", "王覲文", "王柏竣"] },
       { letter: "F", type: "ward", specialist: "沈宛君", doctors: ["沈坤宏", "蕭景星", "胡恭寧", "廖仁傑"] },
       { letter: "G", type: "ward", specialist: "吳貞慧", doctors: ["關哲彥", "于錫倩", "洪順興"] },
-      { letter: "H", type: "support", specialist: "吳孟桂", doctors: ["戰內", "神內", "腸胃科"] },
+      { letter: "H", type: "support", specialist: "吳孟桂", doctors: ["腎內", "神內", "腸胃科"] },
       { letter: "I", type: "support", specialist: "許雯萍", doctors: ["心內", "胸內"] },
     ],
     duties: [
@@ -29,7 +29,7 @@ const schedules = [
       { letter: "E", type: "ward", specialist: "郭子綺", doctors: ["王哲川", "王覲文", "王柏竣"] },
       { letter: "F", type: "ward", specialist: "沈宛君", doctors: ["沈坤宏", "蕭景星", "胡恭寧"] },
       { letter: "G", type: "support", specialist: "吳貞慧", doctors: ["關哲彥", "洪順興"] },
-      { letter: "H", type: "support", specialist: "吳孟桂", doctors: ["戰內", "神內"] },
+      { letter: "H", type: "support", specialist: "吳孟桂", doctors: ["腎內", "神內"] },
       { letter: "I", type: "clinic", specialist: "許雯萍", doctors: ["心內", "胸內"] },
     ],
     duties: [
@@ -37,7 +37,7 @@ const schedules = [
       { kind: "oncall", badge: "值", title: "鄭鴻翔", note: "26/6/1" },
       { kind: "next", badge: "N", title: "張婷婷", note: "6/2" },
     ],
-    leaves: ["席仁傑", "陳經國"],
+    leaves: ["廖仁傑", "陳經國"],
   },
   {
     date: "2026-06-02",
@@ -49,7 +49,7 @@ const schedules = [
       { letter: "E", type: "clinic", specialist: "郭子綺", doctors: ["王哲川", "王覲文", "王柏竣"] },
       { letter: "F", type: "ward", specialist: "黃嘉綺", doctors: ["沈坤宏", "蕭景星", "胡恭寧", "廖仁傑"] },
       { letter: "G", type: "support", specialist: "吳貞慧", doctors: ["于錫倩", "洪順興"] },
-      { letter: "H", type: "support", specialist: "吳孟桂", doctors: ["戰內", "腸胃科"] },
+      { letter: "H", type: "support", specialist: "吳孟桂", doctors: ["腎內", "腸胃科"] },
       { letter: "I", type: "support", specialist: "許雯萍", doctors: ["心內", "胸內"] },
     ],
     duties: [
@@ -57,7 +57,7 @@ const schedules = [
       { kind: "oncall", badge: "值", title: "沈坤宏", note: "26/6/2" },
       { kind: "next", badge: "N", title: "鄭鈺芬", note: "6/3" },
     ],
-    leaves: ["林聖維", "王顥文"],
+    leaves: ["林思維", "王覲文"],
   },
 ];
 
@@ -94,14 +94,21 @@ const fallbackPersonnel = {
     { name: "陳俊良", code: "8048" },
     { name: "王哲川", code: "5318" },
     { name: "王覲文", code: "8002" },
-    { name: "王柏竣", code: "" },
-    { name: "沈坤宏", code: "" },
-    { name: "蕭景星", code: "" },
-    { name: "胡恭寧", code: "" },
-    { name: "廖仁傑", code: "" },
+    { name: "王柏竣", code: "6654" },
+    { name: "沈坤宏", code: "5189" },
+    { name: "蕭景星", code: "8024" },
+    { name: "胡恭寧", code: "6077" },
+    { name: "廖仁傑", code: "6181" },
     { name: "關哲彥", code: "" },
-    { name: "于錫倩", code: "" },
-    { name: "洪順興", code: "" },
+    { name: "于錫倩", code: "8246" },
+    { name: "洪順興", code: "5768" },
+    { name: "施貿翔", code: "6482" },
+    { name: "腎內", code: "" },
+    { name: "洪綸吾", code: "3354" },
+    { name: "神內", code: "" },
+    { name: "腸胃科", code: "" },
+    { name: "心內", code: "" },
+    { name: "胸內", code: "" },
   ],
 };
 
