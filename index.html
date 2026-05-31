@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260531-larger-staff-text" />
+    <link rel="stylesheet" href="./styles.css?v=20260531-toolbar-header-align" />
   </head>
   <body>
     <main class="schedule-shell">
@@ -19,6 +19,14 @@
         <div class="hero-copy">
           <p class="hospital-name">佳里奇美醫院外科部</p>
           <h1>醫療團隊排班總覽</h1>
+        </div>
+        <div class="mode-toolbar" aria-live="polite">
+          <span class="mode-badge" id="modeStatus">檢視模式</span>
+          <span class="sync-badge" id="syncStatus">本機資料</span>
+          <button class="edit-mode-button" type="button" id="editModeToggle" aria-pressed="false">
+            <i data-lucide="lock-keyhole"></i>
+            <span>修改模式</span>
+          </button>
         </div>
       </section>
 
@@ -62,15 +70,6 @@
             </div>
             <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="選擇日期"></div>
           </div>
-        </div>
-
-        <div class="mode-toolbar" aria-live="polite">
-          <span class="mode-badge" id="modeStatus">檢視模式</span>
-          <span class="sync-badge" id="syncStatus">本機資料</span>
-          <button class="edit-mode-button" type="button" id="editModeToggle" aria-pressed="false">
-            <i data-lucide="lock-keyhole"></i>
-            <span>修改模式</span>
-          </button>
         </div>
 
         <section class="area-grid" id="areaGrid" aria-label="分區排班"></section>
