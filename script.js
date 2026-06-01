@@ -3,7 +3,7 @@ let schedules = [
     date: "2026-05-31",
     label: "5/31",
     areas: [
-      { letter: "B", type: "ward", specialist: "張婷婷", doctors: ["余宗興", "林思維", "曾建仁"] },
+      { letter: "B", type: "ward", specialist: "張婷亭", doctors: ["余宗興", "林思維", "曾建仁"] },
       { letter: "C", type: "ward", specialist: "鄭鈺芬", doctors: ["韓龍疇", "陳春丞", "鄭鴻翔"] },
       { letter: "D", type: "ward", specialist: "郭子綺", doctors: ["陳經國", "田宇峯", "陳俊良"] },
       { letter: "E", type: "ward", specialist: "黃嘉綺", doctors: ["王哲川", "王覲文", "王柏竣"] },
@@ -24,7 +24,7 @@ let schedules = [
     label: "6/1",
     areas: [
       { letter: "B", type: "ward", specialist: "黃嘉綺", doctors: ["余宗興", "林思維", "曾建仁"] },
-      { letter: "C", type: "clinic", specialist: "張婷婷", doctors: ["韓龍疇", "陳春丞", "鄭鴻翔"] },
+      { letter: "C", type: "clinic", specialist: "張婷亭", doctors: ["韓龍疇", "陳春丞", "鄭鴻翔"] },
       { letter: "D", type: "ward", specialist: "鄭鈺芬", doctors: ["陳經國", "田宇峯", "陳俊良"] },
       { letter: "E", type: "ward", specialist: "郭子綺", doctors: ["王哲川", "王覲文", "王柏竣"] },
       { letter: "F", type: "ward", specialist: "沈宛君", doctors: ["沈坤宏", "蕭景星", "胡恭寧"] },
@@ -35,7 +35,7 @@ let schedules = [
     duties: [
       { kind: "evening", badge: "E", title: "黃嘉綺", note: "" },
       { kind: "oncall", badge: "值", title: "鄭鴻翔", note: "26/6/1" },
-      { kind: "next", badge: "N", title: "張婷婷", note: "6/2" },
+      { kind: "next", badge: "N", title: "張婷亭", note: "6/2" },
     ],
     leaves: ["廖仁傑", "陳經國"],
   },
@@ -44,7 +44,7 @@ let schedules = [
     label: "6/2",
     areas: [
       { letter: "B", type: "ward", specialist: "沈宛君", doctors: ["余宗興", "林思維", "曾建仁"] },
-      { letter: "C", type: "ward", specialist: "張婷婷", doctors: ["韓龍疇", "陳春丞", "鄭鴻翔"] },
+      { letter: "C", type: "ward", specialist: "張婷亭", doctors: ["韓龍疇", "陳春丞", "鄭鴻翔"] },
       { letter: "D", type: "ward", specialist: "鄭鈺芬", doctors: ["陳經國", "田宇峯", "陳俊良"] },
       { letter: "E", type: "clinic", specialist: "郭子綺", doctors: ["王哲川", "王覲文", "王柏竣"] },
       { letter: "F", type: "ward", specialist: "黃嘉綺", doctors: ["沈坤宏", "蕭景星", "胡恭寧", "廖仁傑"] },
@@ -77,7 +77,7 @@ const fallbackPersonnel = {
     { name: "鮑惠琦", code: "8121" },
     { name: "陳姿尹", code: "8281" },
     { name: "沈宛君", code: "8122" },
-    { name: "張婷婷", code: "8132" },
+    { name: "張婷亭", code: "8132" },
     { name: "鄭鈺芬", code: "8152" },
     { name: "郭子綺", code: "8173" },
     { name: "賴柔瑜", code: "8417" },
