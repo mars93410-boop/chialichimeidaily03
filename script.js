@@ -114,7 +114,7 @@ const fallbackPersonnel = {
 
 let schedulesByDate = new Map(schedules.map((schedule) => [schedule.date, schedule]));
 let scheduleDates = new Set(schedules.map((schedule) => schedule.date));
-const today = startOfDay(new Date());
+const today = getDefaultScheduleDate();
 const EDIT_PERMISSION_CODE = "cmh2026";
 const SUPABASE_TABLE = "schedule_state";
 const SUPABASE_ROW_ID = "default";
@@ -941,7 +941,9 @@ function getVisibleAreas(day) {
 function ensureAreaVisibility(day) {
   if (day._areaVisibilityReady) return;
   day.areas.forEach((area, index) => {
-    area.visible = index < 4;
+    if (typeof area.visible !== "boolean") {
+      area.visible = index < 4;
+    }
   });
   day._areaVisibilityReady = true;
 }
@@ -1148,6 +1150,16 @@ function addDays(date, amount) {
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function getDefaultScheduleDate(now = new Date()) {
+  const date = startOfDay(now);
+
+  if (now.getHours() < 8) {
+    return addDays(date, -1);
+  }
+
+  return date;
 }
 
 function isSameDay(left, right) {
