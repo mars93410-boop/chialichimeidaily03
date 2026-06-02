@@ -1018,6 +1018,19 @@ h1 {
   outline: 0;
 }
 
+.name-picker-option.is-blank-option {
+  color: #667696;
+  border-style: dashed;
+  background: #fff;
+}
+
+.name-picker-option.is-blank-option:hover,
+.name-picker-option.is-blank-option:focus-visible {
+  color: #a84651;
+  border-color: #e5b8bf;
+  background: #fff7f8;
+}
+
 .empty-card {
   display: grid;
   min-height: 130px;

@@ -115,7 +115,7 @@ const fallbackPersonnel = {
 let schedulesByDate = new Map(schedules.map((schedule) => [schedule.date, schedule]));
 let scheduleDates = new Set(schedules.map((schedule) => schedule.date));
 const today = getDefaultScheduleDate();
-const EDIT_PERMISSION_CODE = "cmh2026";
+const EDIT_PERMISSION_CODE = "0000";
 const SUPABASE_TABLE = "schedule_state";
 const SUPABASE_ROW_ID = "default";
 const LOCAL_SCHEDULE_STORAGE_KEY = "surgeryScheduleState";
@@ -124,6 +124,7 @@ const DEFAULT_DUTIES = [
   { kind: "next", badge: "N", title: "", note: "" },
   { kind: "oncall", badge: "\u503c", title: "", note: "" },
 ];
+const DEFAULT_VISIBLE_AREA_COUNT = 5;
 
 let selectedDate = today;
 let visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
@@ -175,7 +176,11 @@ function render() {
 
   areaGrid.innerHTML = [
     ...visibleAreas.map(({ area, areaIndex }, visibleIndex) =>
-      renderAreaCard(area, areaIndex, isEditMode && visibleIndex === visibleAreas.length - 1 && visibleAreas.length > 4),
+      renderAreaCard(
+        area,
+        areaIndex,
+        isEditMode && visibleIndex === visibleAreas.length - 1 && visibleAreas.length > DEFAULT_VISIBLE_AREA_COUNT,
+      ),
     ),
     isEditMode ? renderAddAreaCard() : "",
   ].join("");
@@ -854,13 +859,7 @@ function serializeSchedules() {
   return schedules.map((schedule) => ({
     date: schedule.date,
     label: schedule.label,
-    areas: (schedule.areas ?? []).map((area) => ({
-      letter: area.letter,
-      type: area.type,
-      visible: area.visible,
-      specialist: area.specialist,
-      doctors: [...(area.doctors ?? [])],
-    })),
+    areas: normalizeScheduleAreas(schedule.areas),
     duties: normalizeScheduleDuties(schedule.duties).map((duty) => ({
       kind: duty.kind,
       badge: duty.badge,
@@ -877,13 +876,7 @@ function sanitizeSchedules(nextSchedules) {
     .map((schedule) => ({
       date: schedule.date,
       label: schedule.label ?? formatShortDate(parseLocalDate(schedule.date)),
-      areas: (schedule.areas ?? []).map((area) => ({
-        letter: area.letter ?? "",
-        type: area.type ?? "ward",
-        visible: area.visible,
-        specialist: area.specialist ?? "",
-        doctors: (area.doctors ?? []).filter(Boolean),
-      })),
+      areas: normalizeScheduleAreas(schedule.areas),
       duties: normalizeScheduleDuties(schedule.duties),
       leaves: schedule.leaves ?? [],
     }));
@@ -894,6 +887,7 @@ function getScheduleForDate(date, { create = false } = {}) {
   const existingSchedule = schedulesByDate.get(isoDate);
 
   if (existingSchedule) {
+    ensureScheduleAreas(existingSchedule);
     ensureScheduleDuties(existingSchedule);
     return existingSchedule;
   }
@@ -911,14 +905,49 @@ function createBlankSchedule(date) {
   return {
     date: toIsoDate(date),
     label: formatShortDate(date),
-    areas: [],
+    areas: createDefaultAreas(),
     duties: createDefaultDuties(),
     leaves: [],
   };
 }
 
+function createDefaultAreas() {
+  return Array.from({ length: DEFAULT_VISIBLE_AREA_COUNT }, () => createDefaultArea());
+}
+
+function createDefaultArea() {
+  return {
+    letter: "",
+    type: "ward",
+    visible: true,
+    specialist: "",
+    doctors: [],
+  };
+}
+
 function createDefaultDuties() {
   return DEFAULT_DUTIES.map((duty) => ({ ...duty }));
+}
+
+function ensureScheduleAreas(schedule) {
+  schedule.areas = normalizeScheduleAreas(schedule.areas);
+  return schedule.areas;
+}
+
+function normalizeScheduleAreas(areas = []) {
+  const normalizedAreas = (areas ?? []).map((area, index) => ({
+    letter: area?.letter ?? "",
+    type: area?.type ?? "ward",
+    visible: typeof area?.visible === "boolean" ? area.visible : index < DEFAULT_VISIBLE_AREA_COUNT,
+    specialist: area?.specialist ?? "",
+    doctors: (area?.doctors ?? []).filter(Boolean),
+  }));
+
+  while (normalizedAreas.filter((area) => area.visible).length < DEFAULT_VISIBLE_AREA_COUNT) {
+    normalizedAreas.push(createDefaultArea());
+  }
+
+  return normalizedAreas;
 }
 
 function ensureScheduleDuties(schedule) {
@@ -987,8 +1016,8 @@ function renderAreaActions() {
   areaActions.hidden = !isEditMode;
   if (!isEditMode) return;
 
-  const previousDay = getScheduleForDate(addDays(selectedDate, -1));
-  const hasPreviousAreas = (previousDay.areas ?? []).length > 0;
+  const previousDay = schedulesByDate.get(toIsoDate(addDays(selectedDate, -1)));
+  const hasPreviousAreas = (previousDay?.areas ?? []).length > 0;
   dittoPreviousDayButton.disabled = !hasPreviousAreas;
   dittoPreviousDayButton.title = hasPreviousAreas ? "" : "前一日沒有排班資料";
   dittoPreviousDayButton.setAttribute("aria-disabled", String(!hasPreviousAreas));
@@ -997,11 +1026,12 @@ function renderAreaActions() {
 function dittoPreviousDayAreas() {
   if (!isEditMode) return;
 
-  const previousDay = getScheduleForDate(addDays(selectedDate, -1));
-  if (!(previousDay.areas ?? []).length) return;
+  const previousDay = schedulesByDate.get(toIsoDate(addDays(selectedDate, -1)));
+  if (!(previousDay?.areas ?? []).length) return;
 
   const day = getScheduleForDate(selectedDate, { create: true });
-  day.areas = previousDay.areas.map(cloneArea);
+  ensureScheduleAreas(previousDay);
+  day.areas = normalizeScheduleAreas(previousDay.areas.map(cloneArea));
   render();
   queueSaveSchedule();
 }
@@ -1022,13 +1052,14 @@ function deleteArea(areaIndex) {
   const day = getScheduleForDate(selectedDate, { create: true });
   const visibleAreas = getVisibleAreas(day);
   const lastVisible = visibleAreas.at(-1);
-  if (visibleAreas.length <= 4 || lastVisible?.areaIndex !== areaIndex) return;
+  if (visibleAreas.length <= DEFAULT_VISIBLE_AREA_COUNT || lastVisible?.areaIndex !== areaIndex) return;
   day.areas.splice(areaIndex, 1);
   render();
   queueSaveSchedule();
 }
 
 function getVisibleAreas(day) {
+  ensureScheduleAreas(day);
   ensureAreaVisibility(day);
   return day.areas
     .map((area, areaIndex) => ({ area, areaIndex }))
@@ -1039,7 +1070,7 @@ function ensureAreaVisibility(day) {
   if (day._areaVisibilityReady) return;
   day.areas.forEach((area, index) => {
     if (typeof area.visible !== "boolean") {
-      area.visible = index < 4;
+      area.visible = index < DEFAULT_VISIBLE_AREA_COUNT;
     }
   });
   day._areaVisibilityReady = true;
@@ -1105,9 +1136,13 @@ function openNamePicker(kind, areaIndex, doctorIndex, dutyIndex = null, dutyKind
 
   activePicker = { date: toIsoDate(selectedDate), kind, areaIndex, doctorIndex, dutyIndex, dutyKind };
   const isSpecialistPicker = kind === "specialist" || kind === "duty-specialist";
+  const isDutyPicker = kind === "duty-specialist" || kind === "duty-doctor";
   const options = isSpecialistPicker ? personnel.specialists : personnel.doctors;
   namePickerTitle.textContent = isSpecialistPicker ? "選擇專師" : "選擇醫師";
-  namePickerList.innerHTML = options.map((person) => renderNameOption(person, isSpecialistPicker ? "specialist" : "doctor")).join("");
+  namePickerList.innerHTML = [
+    isDutyPicker ? renderBlankNameOption() : "",
+    ...options.map((person) => renderNameOption(person, isSpecialistPicker ? "specialist" : "doctor")),
+  ].join("");
   namePicker.hidden = false;
 
   if (window.lucide) {
@@ -1120,6 +1155,10 @@ function renderNameOption(person, kind) {
   const displayName = kind === "specialist" ? formatSpecialistName(name) : formatDoctorName(name);
 
   return `<button class="name-picker-option" type="button" data-name="${name}">${displayName}</button>`;
+}
+
+function renderBlankNameOption() {
+  return `<button class="name-picker-option is-blank-option" type="button" data-name="">空白</button>`;
 }
 
 function replaceName(name) {
