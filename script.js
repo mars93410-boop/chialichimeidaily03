@@ -115,7 +115,7 @@ const fallbackPersonnel = {
 let schedulesByDate = new Map(schedules.map((schedule) => [schedule.date, schedule]));
 let scheduleDates = new Set(schedules.map((schedule) => schedule.date));
 const today = getDefaultScheduleDate();
-const EDIT_PERMISSION_CODE = "0000";
+const EDIT_PERMISSION_CODE = "cmh2026";
 const SUPABASE_TABLE = "schedule_state";
 const SUPABASE_ROW_ID = "default";
 const LOCAL_SCHEDULE_STORAGE_KEY = "surgeryScheduleState";

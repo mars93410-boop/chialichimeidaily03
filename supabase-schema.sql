@@ -84,6 +84,6 @@ end $$;
 
 -- Set or change the shared edit password here.
 insert into private.schedule_settings (id, edit_password_hash)
-values ('default', crypt('0000', gen_salt('bf')))
+values ('default', crypt('cmh2026', gen_salt('bf')))
 on conflict (id) do update
 set edit_password_hash = excluded.edit_password_hash;
