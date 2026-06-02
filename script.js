@@ -119,6 +119,11 @@ const EDIT_PERMISSION_CODE = "cmh2026";
 const SUPABASE_TABLE = "schedule_state";
 const SUPABASE_ROW_ID = "default";
 const LOCAL_SCHEDULE_STORAGE_KEY = "surgeryScheduleState";
+const DEFAULT_DUTIES = [
+  { kind: "evening", badge: "E", title: "", note: "" },
+  { kind: "next", badge: "N", title: "", note: "" },
+  { kind: "oncall", badge: "\u503c", title: "", note: "" },
+];
 
 let selectedDate = today;
 let visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
@@ -159,6 +164,8 @@ const authForm = document.querySelector("#authForm");
 const authPassword = document.querySelector("#authPassword");
 const authCancelButton = document.querySelector("#authCancelButton");
 const authMessage = document.querySelector("#authMessage");
+const areaActions = document.querySelector("#areaActions");
+const dittoPreviousDayButton = document.querySelector("#dittoPreviousDay");
 
 function render() {
   const day = getScheduleForDate(selectedDate);
@@ -178,6 +185,7 @@ function render() {
     .map(renderDutyCard)
     .join("");
   leaveList.innerHTML = renderLeaveList(day);
+  renderAreaActions();
   renderEditMode();
 
   if (window.lucide) {
@@ -294,6 +302,7 @@ function renderDutyCard(duty) {
     ? `
       data-action="open-picker"
       data-kind="${pickerKind}"
+      data-duty-kind="${duty.kind}"
       data-duty-index="${duty.dutyIndex}"
       tabindex="0"
       role="button"
@@ -316,6 +325,7 @@ function renderDutyCard(duty) {
                 type="button"
                 data-action="open-picker"
                 data-kind="${pickerKind}"
+                data-duty-kind="${duty.kind}"
                 data-duty-index="${duty.dutyIndex}"
               >${formatDutyName(duty)}</button>`
             : `<span class="duty-name-button is-readonly">${formatDutyName(duty)}</span>`
@@ -337,6 +347,8 @@ document.querySelector("#prevDay").addEventListener("click", () => {
 document.querySelector("#nextDay").addEventListener("click", () => {
   setSelectedDate(addDays(selectedDate, 1));
 });
+
+dittoPreviousDayButton.addEventListener("click", dittoPreviousDayAreas);
 
 datePickerToggle.addEventListener("click", () => {
   const willOpen = calendarPanel.hidden;
@@ -435,7 +447,7 @@ dutyGrid.addEventListener("click", (event) => {
   if (!control) return;
 
   if (control.dataset.action === "open-picker") {
-    openNamePicker(control.dataset.kind, null, null, Number(control.dataset.dutyIndex));
+    openNamePicker(control.dataset.kind, null, null, Number(control.dataset.dutyIndex), control.dataset.dutyKind);
   }
 });
 
@@ -447,7 +459,7 @@ dutyGrid.addEventListener("keydown", (event) => {
   if (!control) return;
 
   event.preventDefault();
-  openNamePicker(control.dataset.kind, null, null, Number(control.dataset.dutyIndex));
+  openNamePicker(control.dataset.kind, null, null, Number(control.dataset.dutyIndex), control.dataset.dutyKind);
 });
 
 areaGrid.addEventListener("dragstart", (event) => {
@@ -573,6 +585,7 @@ function renderCalendar() {
 }
 
 function setSelectedDate(date) {
+  closeNamePicker();
   selectedDate = startOfDay(date);
   visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
   render();
@@ -848,7 +861,7 @@ function serializeSchedules() {
       specialist: area.specialist,
       doctors: [...(area.doctors ?? [])],
     })),
-    duties: (schedule.duties ?? []).map((duty) => ({
+    duties: normalizeScheduleDuties(schedule.duties).map((duty) => ({
       kind: duty.kind,
       badge: duty.badge,
       title: duty.title,
@@ -871,24 +884,73 @@ function sanitizeSchedules(nextSchedules) {
         specialist: area.specialist ?? "",
         doctors: (area.doctors ?? []).filter(Boolean),
       })),
-      duties: (schedule.duties ?? []).map((duty) => ({
-        kind: duty.kind,
-        badge: duty.badge,
-        title: duty.title ?? "",
-        note: duty.note ?? "",
-      })),
+      duties: normalizeScheduleDuties(schedule.duties),
       leaves: schedule.leaves ?? [],
     }));
 }
 
-function getScheduleForDate(date) {
-  return schedulesByDate.get(toIsoDate(date)) ?? schedules[0] ?? { date: toIsoDate(date), areas: [], duties: [], leaves: [] };
+function getScheduleForDate(date, { create = false } = {}) {
+  const isoDate = toIsoDate(date);
+  const existingSchedule = schedulesByDate.get(isoDate);
+
+  if (existingSchedule) {
+    ensureScheduleDuties(existingSchedule);
+    return existingSchedule;
+  }
+
+  const blankSchedule = createBlankSchedule(date);
+  if (create) {
+    schedules.push(blankSchedule);
+    rebuildScheduleIndexes();
+  }
+
+  return blankSchedule;
+}
+
+function createBlankSchedule(date) {
+  return {
+    date: toIsoDate(date),
+    label: formatShortDate(date),
+    areas: [],
+    duties: createDefaultDuties(),
+    leaves: [],
+  };
+}
+
+function createDefaultDuties() {
+  return DEFAULT_DUTIES.map((duty) => ({ ...duty }));
+}
+
+function ensureScheduleDuties(schedule) {
+  schedule.duties = normalizeScheduleDuties(schedule.duties);
+  return schedule.duties;
+}
+
+function normalizeScheduleDuties(duties = []) {
+  const dutyByKind = new Map(
+    (duties ?? [])
+      .filter((duty) => duty?.kind)
+      .map((duty) => [
+        duty.kind,
+        {
+          kind: duty.kind,
+          badge: duty.badge ?? "",
+          title: duty.title ?? "",
+          note: duty.note ?? "",
+        },
+      ]),
+  );
+
+  return createDefaultDuties().map((defaultDuty) => ({
+    ...defaultDuty,
+    ...(dutyByKind.get(defaultDuty.kind) ?? {}),
+  }));
 }
 
 function deleteName(kind, areaIndex, doctorIndex) {
   if (!isEditMode) return;
 
-  const day = getScheduleForDate(selectedDate);
+  const day = getScheduleForDate(selectedDate, { create: true });
   const area = day.areas[areaIndex];
   if (!area) return;
 
@@ -907,7 +969,7 @@ function deleteName(kind, areaIndex, doctorIndex) {
 function addArea() {
   if (!isEditMode) return;
 
-  const day = getScheduleForDate(selectedDate);
+  const day = getScheduleForDate(selectedDate, { create: true });
   day.areas.push({
     letter: `新增${nextAreaCode++}`,
     type: "ward",
@@ -919,10 +981,45 @@ function addArea() {
   queueSaveSchedule();
 }
 
+function renderAreaActions() {
+  if (!areaActions || !dittoPreviousDayButton) return;
+
+  areaActions.hidden = !isEditMode;
+  if (!isEditMode) return;
+
+  const previousDay = getScheduleForDate(addDays(selectedDate, -1));
+  const hasPreviousAreas = (previousDay.areas ?? []).length > 0;
+  dittoPreviousDayButton.disabled = !hasPreviousAreas;
+  dittoPreviousDayButton.title = hasPreviousAreas ? "" : "前一日沒有排班資料";
+  dittoPreviousDayButton.setAttribute("aria-disabled", String(!hasPreviousAreas));
+}
+
+function dittoPreviousDayAreas() {
+  if (!isEditMode) return;
+
+  const previousDay = getScheduleForDate(addDays(selectedDate, -1));
+  if (!(previousDay.areas ?? []).length) return;
+
+  const day = getScheduleForDate(selectedDate, { create: true });
+  day.areas = previousDay.areas.map(cloneArea);
+  render();
+  queueSaveSchedule();
+}
+
+function cloneArea(area) {
+  return {
+    letter: area.letter ?? "",
+    type: area.type ?? "ward",
+    visible: typeof area.visible === "boolean" ? area.visible : true,
+    specialist: area.specialist ?? "",
+    doctors: [...(area.doctors ?? [])],
+  };
+}
+
 function deleteArea(areaIndex) {
   if (!isEditMode) return;
 
-  const day = getScheduleForDate(selectedDate);
+  const day = getScheduleForDate(selectedDate, { create: true });
   const visibleAreas = getVisibleAreas(day);
   const lastVisible = visibleAreas.at(-1);
   if (visibleAreas.length <= 4 || lastVisible?.areaIndex !== areaIndex) return;
@@ -973,7 +1070,7 @@ function getDoctorDropTarget(target) {
 function moveDoctor(source, target) {
   if (!isEditMode) return;
 
-  const day = getScheduleForDate(selectedDate);
+  const day = getScheduleForDate(selectedDate, { create: true });
   const sourceArea = day.areas[source.areaIndex];
   const targetArea = day.areas[target.areaIndex];
   if (!sourceArea || !targetArea) return;
@@ -1003,10 +1100,10 @@ function moveDoctor(source, target) {
   queueSaveSchedule();
 }
 
-function openNamePicker(kind, areaIndex, doctorIndex, dutyIndex = null) {
+function openNamePicker(kind, areaIndex, doctorIndex, dutyIndex = null, dutyKind = "") {
   if (!isEditMode) return;
 
-  activePicker = { kind, areaIndex, doctorIndex, dutyIndex };
+  activePicker = { date: toIsoDate(selectedDate), kind, areaIndex, doctorIndex, dutyIndex, dutyKind };
   const isSpecialistPicker = kind === "specialist" || kind === "duty-specialist";
   const options = isSpecialistPicker ? personnel.specialists : personnel.doctors;
   namePickerTitle.textContent = isSpecialistPicker ? "選擇專師" : "選擇醫師";
@@ -1028,7 +1125,8 @@ function renderNameOption(person, kind) {
 function replaceName(name) {
   if (!isEditMode) return;
 
-  const day = getScheduleForDate(selectedDate);
+  const pickerDate = activePicker?.date ? parseLocalDate(activePicker.date) : selectedDate;
+  const day = getScheduleForDate(pickerDate, { create: true });
 
   if (activePicker.kind === "leave-doctor") {
     if (!day.leaves.includes(name)) {
@@ -1040,7 +1138,7 @@ function replaceName(name) {
   }
 
   if (activePicker.kind === "duty-specialist" || activePicker.kind === "duty-doctor") {
-    const duty = day.duties[activePicker.dutyIndex];
+    const duty = getDutyForPicker(day, activePicker);
     if (duty) {
       duty.title = name;
     }
@@ -1066,6 +1164,15 @@ function replaceName(name) {
 
   render();
   queueSaveSchedule();
+}
+
+function getDutyForPicker(day, picker) {
+  ensureScheduleDuties(day);
+  if (picker.dutyKind) {
+    return day.duties.find((duty) => duty.kind === picker.dutyKind);
+  }
+
+  return day.duties[picker.dutyIndex];
 }
 
 function renderLeaveList(day) {
@@ -1105,7 +1212,7 @@ function renderLeaveList(day) {
 function deleteLeaveDoctor(leaveIndex) {
   if (!isEditMode) return;
 
-  const day = getScheduleForDate(selectedDate);
+  const day = getScheduleForDate(selectedDate, { create: true });
   day.leaves.splice(leaveIndex, 1);
   render();
   queueSaveSchedule();

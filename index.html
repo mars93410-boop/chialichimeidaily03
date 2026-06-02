@@ -11,7 +11,7 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260531-qr-desktop" />
+    <link rel="stylesheet" href="./styles.css?v=20260602-ditto-day" />
   </head>
   <body>
     <main class="schedule-shell">
@@ -77,6 +77,13 @@
 
         <section class="area-grid" id="areaGrid" aria-label="分區排班"></section>
 
+        <div class="area-actions" id="areaActions" hidden>
+          <button class="ditto-day-button" type="button" id="dittoPreviousDay">
+            <i data-lucide="copy-plus"></i>
+            <span>Ditto 前一日</span>
+          </button>
+        </div>
+
         <section class="status-section">
           <div class="section-title">
             <span class="title-icon duty"><i data-lucide="user-round-check"></i></span>
@@ -133,6 +140,6 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./supabase-config.js?v=20260531-supabase-configured"></script>
-    <script src="./script.js?v=20260531-cloud-sync"></script>
+    <script src="./script.js?v=20260602-duty-day-only"></script>
   </body>
 </html>
