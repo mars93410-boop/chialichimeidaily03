@@ -268,10 +268,19 @@ function renderNameSlot({ kind, name = "", label, areaIndex, doctorIndex = "", e
 
   if (!isEditMode) {
     if (!label) return "";
+    const phone = getPhoneNumber(kind, name);
+
+    if (phone && isMobileView()) {
+      return `
+        <a class="name-chip ${extraClass} is-readonly phone-name-link" href="tel:${phone}" ${baseAttrs} aria-label="Call ${label}">
+          <span class="name-chip-label">${label}</span>
+        </a>
+      `;
+    }
 
     return `
       <span class="name-chip ${extraClass} is-readonly" ${baseAttrs}>
-        ${renderCallableName(kind, name, label, "name-chip-label")}
+        <span class="name-chip-label">${label}</span>
       </span>
     `;
   }
@@ -1231,21 +1240,7 @@ function getDutyForPicker(day, picker) {
 function renderLeaveList(day) {
   const leaveItems = day.leaves.length
     ? day.leaves
-        .map(
-          (name, leaveIndex) => `
-            <span class="leave-chip">
-              <i>休</i>
-              ${renderCallableName("doctor", name, formatDoctorName(name), "leave-name-link")}
-              ${
-                isEditMode
-                  ? `<button class="leave-delete-button" type="button" data-action="delete-leave" data-leave-index="${leaveIndex}" aria-label="刪除 ${name}">
-                      <i data-lucide="x"></i>
-                    </button>`
-                  : ""
-              }
-            </span>
-          `,
-        )
+        .map(renderLeaveChip)
         .join("")
     : `<span class="leave-chip leave-empty"><i>OK</i><span>無請假醫師</span></span>`;
 
@@ -1259,6 +1254,34 @@ function renderLeaveList(day) {
           </button>`
         : ""
     }
+  `;
+}
+
+function renderLeaveChip(name, leaveIndex) {
+  const label = formatDoctorName(name);
+  const phone = getPhoneNumber("doctor", name);
+
+  if (!isEditMode && phone && isMobileView()) {
+    return `
+      <a class="leave-chip phone-name-link" href="tel:${phone}" aria-label="Call ${label}">
+        <i>休</i>
+        <span>${label}</span>
+      </a>
+    `;
+  }
+
+  return `
+    <span class="leave-chip">
+      <i>休</i>
+      <span>${label}</span>
+      ${
+        isEditMode
+          ? `<button class="leave-delete-button" type="button" data-action="delete-leave" data-leave-index="${leaveIndex}" aria-label="刪除 ${name}">
+              <i data-lucide="x"></i>
+            </button>`
+          : ""
+      }
+    </span>
   `;
 }
 
@@ -1376,7 +1399,7 @@ function getPhoneNumber(kind, name) {
 
   if (!/^\d{4}$/.test(code)) return "";
 
-  return `23${code}`;
+  return `26${code}`;
 }
 
 function isMobileView() {
