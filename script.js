@@ -119,6 +119,7 @@ const EDIT_PERMISSION_CODE = "cmh2026";
 const SUPABASE_TABLE = "schedule_state";
 const SUPABASE_ROW_ID = "default";
 const LOCAL_SCHEDULE_STORAGE_KEY = "surgeryScheduleState";
+const MOBILE_VIEW_QUERY = "(max-width: 560px)";
 const DEFAULT_DUTIES = [
   { kind: "evening", badge: "E", title: "", note: "" },
   { kind: "next", badge: "N", title: "", note: "" },
@@ -144,6 +145,7 @@ let saveTimer = null;
 let remoteSubscription = null;
 let lastSavedAt = null;
 let authDialogResolve = null;
+const mobileViewMedia = window.matchMedia?.(MOBILE_VIEW_QUERY);
 
 const areaGrid = document.querySelector("#areaGrid");
 const dutyGrid = document.querySelector("#dutyGrid");
@@ -219,6 +221,7 @@ function renderAreaCard(area, areaIndex, canDeleteArea = false) {
       <div class="area-head">
         ${renderNameSlot({
           kind: "specialist",
+          name: area.specialist,
           label: specialist,
           areaIndex,
           extraClass: "area-specialist",
@@ -234,6 +237,7 @@ function renderAreaCard(area, areaIndex, canDeleteArea = false) {
               <li>
                 ${renderNameSlot({
                   kind: "doctor",
+                  name: doctor,
                   label: formatDoctorName(doctor),
                   areaIndex,
                   doctorIndex,
@@ -258,7 +262,7 @@ function renderAreaCard(area, areaIndex, canDeleteArea = false) {
   `;
 }
 
-function renderNameSlot({ kind, label, areaIndex, doctorIndex = "", extraClass }) {
+function renderNameSlot({ kind, name = "", label, areaIndex, doctorIndex = "", extraClass }) {
   const baseAttrs = `data-kind="${kind}" data-area-index="${areaIndex}" data-doctor-index="${doctorIndex}"`;
   const dragAttrs = isEditMode && kind === "doctor" && label ? `draggable="true" data-draggable-doctor="true"` : "";
 
@@ -267,7 +271,7 @@ function renderNameSlot({ kind, label, areaIndex, doctorIndex = "", extraClass }
 
     return `
       <span class="name-chip ${extraClass} is-readonly" ${baseAttrs}>
-        <span class="name-chip-label">${label}</span>
+        ${renderCallableName(kind, name, label, "name-chip-label")}
       </span>
     `;
   }
@@ -333,7 +337,7 @@ function renderDutyCard(duty) {
                 data-duty-kind="${duty.kind}"
                 data-duty-index="${duty.dutyIndex}"
               >${formatDutyName(duty)}</button>`
-            : `<span class="duty-name-button is-readonly">${formatDutyName(duty)}</span>`
+            : renderDutyName(duty)
         }
       </div>
       <span class="duty-icon"><i data-lucide="${icon}"></i></span>
@@ -552,6 +556,16 @@ leaveList.addEventListener("click", (event) => {
     deleteLeaveDoctor(Number(control.dataset.leaveIndex));
   }
 });
+
+if (mobileViewMedia) {
+  const rerenderOnMobileChange = () => render();
+
+  if (mobileViewMedia.addEventListener) {
+    mobileViewMedia.addEventListener("change", rerenderOnMobileChange);
+  } else if (mobileViewMedia.addListener) {
+    mobileViewMedia.addListener(rerenderOnMobileChange);
+  }
+}
 
 function renderCalendar() {
   calendarMonth.textContent = `${visibleMonth.getFullYear()}年 ${visibleMonth.getMonth() + 1}月`;
@@ -1221,7 +1235,7 @@ function renderLeaveList(day) {
           (name, leaveIndex) => `
             <span class="leave-chip">
               <i>休</i>
-              <span>${formatDoctorName(name)}</span>
+              ${renderCallableName("doctor", name, formatDoctorName(name), "leave-name-link")}
               ${
                 isEditMode
                   ? `<button class="leave-delete-button" type="button" data-action="delete-leave" data-leave-index="${leaveIndex}" aria-label="刪除 ${name}">
@@ -1340,6 +1354,33 @@ function formatDutyName(duty) {
   }
 
   return formatSpecialistName(duty.title);
+}
+
+function renderDutyName(duty) {
+  const kind = duty.kind === "oncall" ? "doctor" : "specialist";
+  return renderCallableName(kind, duty.title, formatDutyName(duty), "duty-name-button is-readonly");
+}
+
+function renderCallableName(kind, name, label, className) {
+  const phone = getPhoneNumber(kind, name);
+  if (!phone || isEditMode || !isMobileView()) {
+    return `<span class="${className}">${label}</span>`;
+  }
+
+  return `<a class="${className} phone-name-link" href="tel:${phone}" aria-label="Call ${label}">${label}</a>`;
+}
+
+function getPhoneNumber(kind, name) {
+  const person = kind === "specialist" ? specialistByName.get(name) : doctorByName.get(name);
+  const code = person?.code ? String(person.code).trim() : "";
+
+  if (!/^\d{4}$/.test(code)) return "";
+
+  return `23${code}`;
+}
+
+function isMobileView() {
+  return mobileViewMedia?.matches ?? window.innerWidth <= 560;
 }
 
 function buildSpecialistMap(specialists) {
