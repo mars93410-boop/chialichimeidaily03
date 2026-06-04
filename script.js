@@ -114,7 +114,7 @@ const fallbackPersonnel = {
 
 let schedulesByDate = new Map(schedules.map((schedule) => [schedule.date, schedule]));
 let scheduleDates = new Set(schedules.map((schedule) => schedule.date));
-const today = getDefaultScheduleDate();
+let today = getDefaultScheduleDate();
 const EDIT_PERMISSION_CODE = "cmh2026";
 const SUPABASE_TABLE = "schedule_state";
 const SUPABASE_ROW_ID = "default";
@@ -129,6 +129,7 @@ const DEFAULT_VISIBLE_AREA_COUNT = 5;
 
 let selectedDate = today;
 let visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+let isFollowingDefaultScheduleDate = true;
 let personnel = fallbackPersonnel;
 let specialistByName = buildSpecialistMap(personnel.specialists);
 let doctorByName = buildPersonMap(personnel.doctors);
@@ -145,6 +146,7 @@ let saveTimer = null;
 let remoteSubscription = null;
 let lastSavedAt = null;
 let authDialogResolve = null;
+let autoDateTimer = null;
 const mobileViewMedia = window.matchMedia?.(MOBILE_VIEW_QUERY);
 
 const areaGrid = document.querySelector("#areaGrid");
@@ -576,6 +578,16 @@ if (mobileViewMedia) {
   }
 }
 
+window.addEventListener("focus", () => {
+  refreshDefaultScheduleDate({ jumpIfFollowing: true });
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    refreshDefaultScheduleDate({ jumpIfFollowing: true });
+  }
+});
+
 function renderCalendar() {
   calendarMonth.textContent = `${visibleMonth.getFullYear()}年 ${visibleMonth.getMonth() + 1}月`;
 
@@ -612,11 +624,48 @@ function renderCalendar() {
   }
 }
 
-function setSelectedDate(date) {
+function setSelectedDate(date, { syncAutoFollow = true } = {}) {
   closeNamePicker();
   selectedDate = startOfDay(date);
   visibleMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+  if (syncAutoFollow) {
+    isFollowingDefaultScheduleDate = isSameDay(selectedDate, today);
+  }
   render();
+}
+
+function refreshDefaultScheduleDate({ jumpIfFollowing = false } = {}) {
+  const nextDefaultDate = getDefaultScheduleDate();
+  const defaultDateChanged = !isSameDay(nextDefaultDate, today);
+
+  if (!defaultDateChanged) return;
+
+  today = nextDefaultDate;
+
+  if (jumpIfFollowing && isFollowingDefaultScheduleDate) {
+    isFollowingDefaultScheduleDate = true;
+    setSelectedDate(today, { syncAutoFollow: false });
+    return;
+  }
+
+  isFollowingDefaultScheduleDate = isSameDay(selectedDate, today);
+  renderCalendar();
+}
+
+function startDefaultDateWatcher() {
+  window.clearTimeout(autoDateTimer);
+  autoDateTimer = window.setTimeout(() => {
+    refreshDefaultScheduleDate({ jumpIfFollowing: true });
+    startDefaultDateWatcher();
+  }, getNextDefaultDateCheckDelay());
+}
+
+function getNextDefaultDateCheckDelay(now = new Date()) {
+  const nextEightAm = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 8, 0, 1);
+  const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+  const nextCheck = now < nextEightAm ? nextEightAm : nextMidnight;
+
+  return Math.max(1000, nextCheck.getTime() - now.getTime());
 }
 
 function closeCalendar() {
@@ -1465,6 +1514,7 @@ function cleanCell(value) {
 
 async function init() {
   localBackupLoaded = loadScheduleBackup();
+  startDefaultDateWatcher();
   render();
 
   try {
