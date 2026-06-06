@@ -176,7 +176,7 @@ function render() {
   const day = getScheduleForDate(selectedDate);
   const visibleAreas = getVisibleAreas(day);
   const normalizedDuties = normalizeDuties(day.duties, selectedDate);
-  dateLabel.textContent = formatShortDate(selectedDate);
+  dateLabel.textContent = formatDisplayDate(selectedDate);
 
   areaGrid.innerHTML = [
     ...visibleAreas.map(({ area, areaIndex }, visibleIndex) =>
@@ -1369,6 +1369,11 @@ function normalizeDuties(duties, date) {
 
 function formatShortDate(date) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function formatDisplayDate(date) {
+  const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+  return `${formatShortDate(date)}（${weekdays[date.getDay()]}）`;
 }
 
 function formatDutyDate(date) {

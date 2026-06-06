@@ -123,13 +123,14 @@ h1 {
   left: 50%;
   z-index: 4;
   display: grid;
-  grid-template-columns: 42px minmax(128px, auto) 42px;
+  grid-template-columns: 38px auto 38px;
   align-items: center;
+  gap: 8px;
   width: fit-content;
-  min-width: 300px;
+  min-width: 0;
   min-height: 58px;
   margin: 0;
-  padding: 6px 14px;
+  padding: 6px 12px;
   border: 1px solid rgba(224, 232, 248, 0.96);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.94);
@@ -294,6 +295,7 @@ h1 {
   justify-content: center;
   gap: 10px;
   min-height: 44px;
+  padding: 0 8px;
   border: 0;
   border-radius: 999px;
   color: var(--blue);
@@ -301,6 +303,7 @@ h1 {
   font-size: 1.75rem;
   font-weight: 800;
   line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
   transition: background 0.18s ease, transform 0.18s ease;
 }
@@ -1328,8 +1331,8 @@ body:not(.is-edit-mode) .duty-card {
   }
 
   .date-switcher {
-    grid-template-columns: 44px minmax(118px, 1fr) 44px;
-    min-width: min(100%, 312px);
+    grid-template-columns: 40px auto 40px;
+    min-width: 0;
     min-height: 64px;
     top: -134px;
   }
@@ -1471,7 +1474,8 @@ body:not(.is-edit-mode) .duty-card {
   }
 
   .date-switcher {
-    width: min(312px, 100%);
+    width: fit-content;
+    max-width: calc(100% - 24px);
     min-width: 0;
     top: -58px;
   }
